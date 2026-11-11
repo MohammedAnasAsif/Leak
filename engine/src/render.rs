@@ -40,10 +40,14 @@ struct SectionBlock<'a> {
 struct CompactStory<'a> {
     id: &'a str,
     title: &'a str,
+    dek: &'a str,
     path: &'a str,
+    cover: &'a str,
     section: &'a str,
     section_name: &'a str,
     sources: usize,
+    regions: usize,
+    first_source: &'a str,
     created: &'a str,
     updated: &'a str,
     breaking: bool,
@@ -55,10 +59,14 @@ impl<'a> From<&'a StoryView> for CompactStory<'a> {
         CompactStory {
             id: &s.id,
             title: &s.title,
+            dek: &s.dek,
             path: &s.path,
+            cover: &s.cover,
             section: &s.section,
             section_name: &s.section_name,
             sources: s.source_count,
+            regions: s.regions.len(),
+            first_source: &s.first_source,
             created: &s.created,
             updated: &s.updated,
             breaking: s.breaking,
@@ -87,6 +95,7 @@ pub struct Report {
 pub fn render(cfg: &Config, state: &State, views: &Views, opts: &RenderOptions) -> Result<Report> {
     let out = &opts.out_dir;
     std::fs::create_dir_all(out.join("story"))?;
+    std::fs::create_dir_all(out.join("covers"))?;
     std::fs::create_dir_all(out.join("api/sections"))?;
     std::fs::create_dir_all(out.join("feed"))?;
     std::fs::create_dir_all(out.join("assets"))?;
@@ -138,8 +147,8 @@ pub fn render(cfg: &Config, state: &State, views: &Views, opts: &RenderOptions) 
 
     // Home
     let lead = stories.first();
-    let top: Vec<&StoryView> = stories.iter().skip(1).take(4).collect();
-    let shown: HashSet<&str> = stories.iter().take(5).map(|s| s.id.as_str()).collect();
+    let top: Vec<&StoryView> = stories.iter().skip(1).take(6).collect();
+    let shown: HashSet<&str> = stories.iter().take(7).map(|s| s.id.as_str()).collect();
     let blocks: Vec<SectionBlock> = cfg
         .site
         .sections
@@ -152,7 +161,7 @@ pub fn render(cfg: &Config, state: &State, views: &Views, opts: &RenderOptions) 
             stories: stories
                 .iter()
                 .filter(|s| s.section == sec.id && !shown.contains(s.id.as_str()))
-                .take(5)
+                .take(4)
                 .collect(),
         })
         .filter(|b| !b.stories.is_empty())
@@ -200,7 +209,7 @@ pub fn render(cfg: &Config, state: &State, views: &Views, opts: &RenderOptions) 
         let more: Vec<&StoryView> = stories
             .iter()
             .filter(|o| o.section == s.section && o.id != s.id)
-            .take(5)
+            .take(6)
             .collect();
         let html = story_tpl.render(context! {
             ..base.clone(),
@@ -213,12 +222,20 @@ pub fn render(cfg: &Config, state: &State, views: &Views, opts: &RenderOptions) 
         let p = out.join(&s.path);
         keep.insert(p.clone());
         w.write(&p, html)?;
+        let cover = out.join(&s.cover);
+        keep.insert(cover.clone());
+        w.write(
+            &cover,
+            crate::cover::svg(&s.id, &s.section_color, &s.regions),
+        )?;
     }
-    // Remove expired story pages (matters for the long-running server).
-    for entry in std::fs::read_dir(out.join("story"))? {
-        let p = entry?.path();
-        if p.extension().is_some_and(|e| e == "html") && !keep.contains(&p) {
-            let _ = std::fs::remove_file(p);
+    // Remove expired story pages and covers (matters for the long-running server).
+    for (dir, ext) in [("story", "html"), ("covers", "svg")] {
+        for entry in std::fs::read_dir(out.join(dir))? {
+            let p = entry?.path();
+            if p.extension().is_some_and(|e| e == ext) && !keep.contains(&p) {
+                let _ = std::fs::remove_file(p);
+            }
         }
     }
 

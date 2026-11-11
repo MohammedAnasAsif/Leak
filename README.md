@@ -16,6 +16,8 @@
 | Windows | `Leak-setup.exe` and `Leak-portable.exe` on the Releases page |
 | iPhone | Sideload with [xtool](https://xtool.sh) (free Apple ID), or Add to Home Screen from Safari — see [docs/IOS.md](docs/IOS.md) |
 
+Every story also gets original cover art generated from its own coverage: one shape per region reporting it, so a cover grows as the story spreads.
+
 Built-in features: top stories ranked by global coverage, nine sections (World, Politics, Finance, Tech, Science, Health, Climate, Sports, Culture), a live wire where fresh headlines glow and fade, breaking and developing flags, story pages with a coverage map by region and a spread timeline, a daily ten-story brief you can listen to, search, saved stories, "new since your last visit" markers, dark mode, keyboard shortcuts (`/`, `j`, `k`), RSS feeds per section, a JSON API, and auto-posting to Telegram, Bluesky, Mastodon and ntfy.
 
 ## Get it running (about 10 minutes, all free)
@@ -25,6 +27,10 @@ Built-in features: top stories ranked by global coverage, nine sections (World, 
 3. **Start the news:** Actions tab → *Publish news* → **Run workflow**. After that it runs by itself every 5 minutes. Your site appears at `https://<you>.github.io/<repo>/`.
 4. **Build the apps:** Actions tab → *Release apps* → **Run workflow**. In about 15 minutes the Releases page has the `.apk` and `.exe`. For updatable Android installs, add a signing key first ([docs/RELEASING.md](docs/RELEASING.md)).
 5. **Optional:** add bot secrets to auto-post big stories ([docs/GROWTH.md](docs/GROWTH.md#2-free-distribution-bots-already-built)).
+
+## Use Leak's news in a Framer site
+
+`integrations/framer/LeakStories.tsx` is a drop-in Framer code component that shows Leak's live stories, with generated cover art, in any Framer site. Setup takes two minutes: see [integrations/framer/README.md](integrations/framer/README.md).
 
 ## Run it on your computer
 
@@ -73,6 +79,7 @@ apps/ios/        SwiftUI app for iPhone, built and sideloaded with xtool
 .github/         publish (every 5 min), CI, and app release workflows
 docs/            growth playbook, roadmap, iOS, releasing, sources
 scripts/         configure.sh to point a fork's apps at its own site
+integrations/    Framer code component that shows Leak's live stories
 ```
 
 ## About speed, honestly

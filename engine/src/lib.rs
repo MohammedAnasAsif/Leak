@@ -5,6 +5,7 @@
 
 pub mod cluster;
 pub mod config;
+pub mod cover;
 pub mod demo;
 pub mod distribute;
 pub mod fetch;

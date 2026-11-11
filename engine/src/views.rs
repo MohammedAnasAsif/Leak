@@ -32,6 +32,7 @@ pub struct RegionCount {
 pub struct Related {
     pub title: String,
     pub path: String,
+    pub cover: String,
     pub section_name: String,
 }
 
@@ -45,6 +46,11 @@ pub struct StoryView {
     pub dek_source: String,
     pub section: String,
     pub section_name: String,
+    pub section_color: String,
+    /// Site-relative path of the generated cover art.
+    pub cover: String,
+    /// Outlets in the order they reported the story (for the byline).
+    pub reporters: Vec<String>,
     pub created: String,
     pub updated: String,
     pub created_clock: String,
@@ -278,6 +284,19 @@ fn story_view(
         id: story.id.clone(),
         url: format!("{}/{}", cfg.site.base_url, path),
         path,
+        section_color: cfg
+            .section(&section)
+            .map(|s| s.color.clone())
+            .unwrap_or_else(|| "#2457D6".into()),
+        cover: format!("covers/{}.svg", story.id),
+        reporters: {
+            let mut seen = HashSet::new();
+            coverage
+                .iter()
+                .filter(|c| seen.insert(c.source_id.clone()))
+                .map(|c| c.source.clone())
+                .collect()
+        },
         title: lead.title.clone(),
         dek,
         dek_source,
@@ -515,6 +534,7 @@ fn add_related(stories: &mut [StoryView], centroids: &HashMap<&str, Centroid>) {
                 .map(|(j, _)| Related {
                     title: stories[j].title.clone(),
                     path: stories[j].path.clone(),
+                    cover: stories[j].cover.clone(),
                     section_name: stories[j].section_name.clone(),
                 })
                 .collect(),
