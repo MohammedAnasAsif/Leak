@@ -32,7 +32,8 @@ jobs:
       - name: Point the site at the news server
         env:
           LEAK_API_URL: ${{ vars.LEAK_API_URL }}
-        run: printf 'window.LEAK_CONFIG = { apiBase: "%s" };\n' "${LEAK_API_URL%/}" > web/config.js
+        run: |
+          printf 'window.LEAK_CONFIG = { apiBase: "%s" };\n' "${LEAK_API_URL%/}" > web/config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
