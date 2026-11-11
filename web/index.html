@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Leak — The world, the moment it happens</title>
+  <meta name="description" content="Leak is a real-time global news magazine: world, politics, finance, tech and more, updated the moment stories break." />
+  <meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0e0e0d" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="icon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="config.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="utility wrap">
+      <span id="today" class="u-date"></span>
+      <span class="u-live" id="liveStatus" title="Live connection">
+        <i class="dot"></i><span id="liveText">Connecting…</span>
+      </span>
+      <div class="u-actions">
+        <button class="icon-btn" id="searchBtn" aria-label="Search">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        </button>
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle dark mode">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        </button>
+        <button class="icon-btn" id="settingsBtn" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="masthead wrap">
+      <a href="#/" class="logo" aria-label="Leak home">Leak<span>.</span></a>
+      <p class="tagline">The world, the moment it happens.</p>
+    </div>
+
+    <nav class="sections wrap" aria-label="Sections">
+      <div class="sections-scroll" id="nav"></div>
+    </nav>
+
+    <div class="ticker" id="ticker" hidden>
+      <div class="wrap ticker-inner">
+        <span class="ticker-label"><i class="dot"></i>Breaking</span>
+        <div class="ticker-track"><div class="ticker-run" id="tickerRun"></div></div>
+      </div>
+    </div>
+  </header>
+
+  <button class="new-pill" id="newPill" hidden></button>
+
+  <main id="main" class="wrap" tabindex="-1"></main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div>
+        <a href="#/" class="logo logo-sm">Leak<span>.</span></a>
+        <p class="muted">A live, open-source news magazine built in Rust. Headlines and summaries come from each publisher's public feed; every story links to the full piece on the publisher's site.</p>
+      </div>
+      <div>
+        <h4>Sections</h4>
+        <ul class="footer-links" id="footerNav"></ul>
+      </div>
+      <div>
+        <h4>Engine</h4>
+        <ul class="stat-list">
+          <li><span id="statStories">–</span> stories tracked</li>
+          <li><span id="statSources">–</span> live sources</li>
+          <li>Median detection <span id="statLag">–</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="wrap footer-base muted">© <span id="year"></span> Leak. Built with Rust, Tauri and open feeds.</div>
+  </footer>
+
+  <dialog id="searchDialog" class="sheet">
+    <form method="dialog" class="search-form" id="searchForm">
+      <input type="search" id="searchInput" placeholder="Search every story…" autocomplete="off" />
+      <button class="btn">Search</button>
+    </form>
+  </dialog>
+
+  <dialog id="settingsDialog" class="sheet">
+    <form method="dialog" class="settings">
+      <h3>Settings</h3>
+      <label class="toggle">
+        <input type="checkbox" id="alertsToggle" />
+        <span>Breaking-news alerts</span>
+      </label>
+      <fieldset id="alertCats"><legend>Alert me for</legend></fieldset>
+      <label class="field" id="serverField">
+        <span>News server</span>
+        <input type="url" id="serverInput" placeholder="https://your-leak-server.example" />
+        <small class="muted">Only needed in the apps if the built-in server is unreachable.</small>
+      </label>
+      <div class="row-end"><button class="btn" id="settingsSave">Done</button></div>
+    </form>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

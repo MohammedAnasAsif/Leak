@@ -1,0 +1,444 @@
+# Every source Leak watches. Add, remove or re-categorise freely.
+# category must be one of: world, politics, finance, tech, science, health,
+#                          sports, entertainment, climate
+# fast = true  -> polled every `fast_poll_secs` (wires and breaking desks).
+# Feeds that advertise a WebSub hub switch to instant push automatically
+# when LEAK_PUBLIC_URL is set to the server's public https address.
+# Check live health of every feed at  GET /api/sources
+
+[settings]
+poll_secs = 60
+fast_poll_secs = 20
+gdelt_secs = 120
+max_articles = 6000
+concurrency = 48
+max_age_hours = 48
+enrich_images = true
+
+# ─────────────────────────── World ───────────────────────────
+[[feed]]
+name = "BBC News"
+url = "https://feeds.bbci.co.uk/news/world/rss.xml"
+category = "world"
+fast = true
+[[feed]]
+name = "Al Jazeera"
+url = "https://www.aljazeera.com/xml/rss/all.xml"
+category = "world"
+fast = true
+[[feed]]
+name = "The Guardian"
+url = "https://www.theguardian.com/world/rss"
+category = "world"
+fast = true
+[[feed]]
+name = "NPR"
+url = "https://feeds.npr.org/1004/rss.xml"
+category = "world"
+[[feed]]
+name = "DW"
+url = "https://rss.dw.com/rdf/rss-en-all"
+category = "world"
+fast = true
+[[feed]]
+name = "France 24"
+url = "https://www.france24.com/en/rss"
+category = "world"
+fast = true
+[[feed]]
+name = "The New York Times"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
+category = "world"
+fast = true
+[[feed]]
+name = "CBC News"
+url = "https://www.cbc.ca/webfeed/rss/rss-world"
+category = "world"
+[[feed]]
+name = "Sky News"
+url = "https://feeds.skynews.com/feeds/rss/world.xml"
+category = "world"
+fast = true
+[[feed]]
+name = "ABC News"
+url = "https://abcnews.go.com/abcnews/internationalheadlines"
+category = "world"
+[[feed]]
+name = "UN News"
+url = "https://news.un.org/feed/subscribe/en/news/all/rss.xml"
+category = "world"
+[[feed]]
+name = "The Hindu"
+url = "https://www.thehindu.com/news/international/feeder/default.rss"
+category = "world"
+[[feed]]
+name = "Times of India"
+url = "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms"
+category = "world"
+[[feed]]
+name = "South China Morning Post"
+url = "https://www.scmp.com/rss/91/feed"
+category = "world"
+[[feed]]
+name = "The Japan Times"
+url = "https://www.japantimes.co.jp/feed/"
+category = "world"
+[[feed]]
+name = "ABC Australia"
+url = "https://www.abc.net.au/news/feed/2942460/rss.xml"
+category = "world"
+[[feed]]
+name = "Africanews"
+url = "https://www.africanews.com/feed/rss"
+category = "world"
+[[feed]]
+name = "MercoPress"
+url = "https://en.mercopress.com/rss/"
+category = "world"
+[[feed]]
+name = "The Independent"
+url = "https://www.independent.co.uk/news/world/rss"
+category = "world"
+[[feed]]
+name = "CNN"
+url = "http://rss.cnn.com/rss/edition_world.rss"
+category = "world"
+fast = true
+
+# ────────────────────────── Politics ─────────────────────────
+[[feed]]
+name = "BBC Politics"
+url = "https://feeds.bbci.co.uk/news/politics/rss.xml"
+category = "politics"
+[[feed]]
+name = "The Guardian Politics"
+url = "https://www.theguardian.com/politics/rss"
+category = "politics"
+[[feed]]
+name = "NYT Politics"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/Politics.xml"
+category = "politics"
+fast = true
+[[feed]]
+name = "NPR Politics"
+url = "https://feeds.npr.org/1014/rss.xml"
+category = "politics"
+[[feed]]
+name = "Politico"
+url = "https://rss.politico.com/politics-news.xml"
+category = "politics"
+fast = true
+[[feed]]
+name = "The Hill"
+url = "https://thehill.com/homenews/feed/"
+category = "politics"
+[[feed]]
+name = "Politico Europe"
+url = "https://www.politico.eu/feed/"
+category = "politics"
+[[feed]]
+name = "The Hindu National"
+url = "https://www.thehindu.com/news/national/feeder/default.rss"
+category = "politics"
+[[feed]]
+name = "Indian Express"
+url = "https://indianexpress.com/section/political-pulse/feed/"
+category = "politics"
+
+# ─────────────────────────── Finance ─────────────────────────
+[[feed]]
+name = "CNBC"
+url = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100003114"
+category = "finance"
+fast = true
+[[feed]]
+name = "CNBC Finance"
+url = "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664"
+category = "finance"
+fast = true
+[[feed]]
+name = "MarketWatch"
+url = "https://feeds.content.dowjones.io/public/rss/mw_topstories"
+category = "finance"
+fast = true
+[[feed]]
+name = "WSJ Markets"
+url = "https://feeds.a.dj.com/rss/RSSMarketsMain.xml"
+category = "finance"
+[[feed]]
+name = "Yahoo Finance"
+url = "https://finance.yahoo.com/news/rssindex"
+category = "finance"
+fast = true
+[[feed]]
+name = "BBC Business"
+url = "https://feeds.bbci.co.uk/news/business/rss.xml"
+category = "finance"
+[[feed]]
+name = "The Guardian Business"
+url = "https://www.theguardian.com/business/rss"
+category = "finance"
+[[feed]]
+name = "NYT Business"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/Business.xml"
+category = "finance"
+[[feed]]
+name = "The Economic Times"
+url = "https://economictimes.indiatimes.com/rssfeedstopstories.cms"
+category = "finance"
+fast = true
+[[feed]]
+name = "Mint"
+url = "https://www.livemint.com/rss/markets"
+category = "finance"
+[[feed]]
+name = "CoinDesk"
+url = "https://www.coindesk.com/arc/outboundfeeds/rss/"
+category = "finance"
+[[feed]]
+name = "Investing.com"
+url = "https://www.investing.com/rss/news.rss"
+category = "finance"
+fast = true
+[[feed]]
+name = "Fortune"
+url = "https://fortune.com/feed/"
+category = "finance"
+
+# ──────────────────────────── Tech ───────────────────────────
+[[feed]]
+name = "The Verge"
+url = "https://www.theverge.com/rss/index.xml"
+category = "tech"
+fast = true
+[[feed]]
+name = "TechCrunch"
+url = "https://techcrunch.com/feed/"
+category = "tech"
+fast = true
+[[feed]]
+name = "Ars Technica"
+url = "https://feeds.arstechnica.com/arstechnica/index"
+category = "tech"
+[[feed]]
+name = "Wired"
+url = "https://www.wired.com/feed/rss"
+category = "tech"
+[[feed]]
+name = "Engadget"
+url = "https://www.engadget.com/rss.xml"
+category = "tech"
+[[feed]]
+name = "BBC Technology"
+url = "https://feeds.bbci.co.uk/news/technology/rss.xml"
+category = "tech"
+[[feed]]
+name = "Hacker News"
+url = "https://hnrss.org/frontpage?points=100"
+category = "tech"
+fast = true
+[[feed]]
+name = "NYT Technology"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/Technology.xml"
+category = "tech"
+[[feed]]
+name = "MIT Technology Review"
+url = "https://www.technologyreview.com/feed/"
+category = "tech"
+[[feed]]
+name = "The Guardian Tech"
+url = "https://www.theguardian.com/technology/rss"
+category = "tech"
+[[feed]]
+name = "9to5Mac"
+url = "https://9to5mac.com/feed/"
+category = "tech"
+[[feed]]
+name = "9to5Google"
+url = "https://9to5google.com/feed/"
+category = "tech"
+[[feed]]
+name = "The Register"
+url = "https://www.theregister.com/headlines.atom"
+category = "tech"
+[[feed]]
+name = "VentureBeat"
+url = "https://venturebeat.com/feed/"
+category = "tech"
+[[feed]]
+name = "Rest of World"
+url = "https://restofworld.org/feed/latest/"
+category = "tech"
+
+# ─────────────────────────── Science ─────────────────────────
+[[feed]]
+name = "BBC Science"
+url = "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"
+category = "science"
+[[feed]]
+name = "NASA"
+url = "https://www.nasa.gov/news-release/feed/"
+category = "science"
+[[feed]]
+name = "ScienceDaily"
+url = "https://www.sciencedaily.com/rss/all.xml"
+category = "science"
+[[feed]]
+name = "Nature"
+url = "https://www.nature.com/nature.rss"
+category = "science"
+[[feed]]
+name = "New Scientist"
+url = "https://www.newscientist.com/feed/home/"
+category = "science"
+[[feed]]
+name = "The Guardian Science"
+url = "https://www.theguardian.com/science/rss"
+category = "science"
+[[feed]]
+name = "Space.com"
+url = "https://www.space.com/feeds/all"
+category = "science"
+[[feed]]
+name = "Phys.org"
+url = "https://phys.org/rss-feed/"
+category = "science"
+
+# ─────────────────────────── Health ──────────────────────────
+[[feed]]
+name = "BBC Health"
+url = "https://feeds.bbci.co.uk/news/health/rss.xml"
+category = "health"
+[[feed]]
+name = "NYT Health"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/Health.xml"
+category = "health"
+[[feed]]
+name = "WHO"
+url = "https://www.who.int/rss-feeds/news-english.xml"
+category = "health"
+[[feed]]
+name = "STAT"
+url = "https://www.statnews.com/feed/"
+category = "health"
+[[feed]]
+name = "NPR Health"
+url = "https://feeds.npr.org/1128/rss.xml"
+category = "health"
+[[feed]]
+name = "The Guardian Health"
+url = "https://www.theguardian.com/society/health/rss"
+category = "health"
+[[feed]]
+name = "Medical Xpress"
+url = "https://medicalxpress.com/rss-feed/"
+category = "health"
+
+# ─────────────────────────── Sports ──────────────────────────
+[[feed]]
+name = "BBC Sport"
+url = "https://feeds.bbci.co.uk/sport/rss.xml"
+category = "sports"
+fast = true
+[[feed]]
+name = "ESPN"
+url = "https://www.espn.com/espn/rss/news"
+category = "sports"
+fast = true
+[[feed]]
+name = "The Guardian Sport"
+url = "https://www.theguardian.com/sport/rss"
+category = "sports"
+[[feed]]
+name = "Sky Sports"
+url = "https://www.skysports.com/rss/12040"
+category = "sports"
+[[feed]]
+name = "ESPNcricinfo"
+url = "https://www.espncricinfo.com/rss/content/story/feeds/0.xml"
+category = "sports"
+[[feed]]
+name = "CBS Sports"
+url = "https://www.cbssports.com/rss/headlines/"
+category = "sports"
+[[feed]]
+name = "Yahoo Sports"
+url = "https://sports.yahoo.com/rss/"
+category = "sports"
+
+# ──────────────────────── Entertainment ──────────────────────
+[[feed]]
+name = "BBC Culture"
+url = "https://feeds.bbci.co.uk/news/entertainment_and_arts/rss.xml"
+category = "entertainment"
+[[feed]]
+name = "Variety"
+url = "https://variety.com/feed/"
+category = "entertainment"
+fast = true
+[[feed]]
+name = "The Hollywood Reporter"
+url = "https://www.hollywoodreporter.com/feed/"
+category = "entertainment"
+[[feed]]
+name = "The Guardian Culture"
+url = "https://www.theguardian.com/culture/rss"
+category = "entertainment"
+[[feed]]
+name = "Rolling Stone"
+url = "https://www.rollingstone.com/feed/"
+category = "entertainment"
+[[feed]]
+name = "Deadline"
+url = "https://deadline.com/feed/"
+category = "entertainment"
+[[feed]]
+name = "Pitchfork"
+url = "https://pitchfork.com/feed/feed-news/rss"
+category = "entertainment"
+
+# ─────────────────────────── Climate ─────────────────────────
+[[feed]]
+name = "The Guardian Environment"
+url = "https://www.theguardian.com/environment/rss"
+category = "climate"
+[[feed]]
+name = "Inside Climate News"
+url = "https://insideclimatenews.org/feed/"
+category = "climate"
+[[feed]]
+name = "Carbon Brief"
+url = "https://www.carbonbrief.org/feed/"
+category = "climate"
+[[feed]]
+name = "Grist"
+url = "https://grist.org/feed/"
+category = "climate"
+[[feed]]
+name = "NYT Climate"
+url = "https://rss.nytimes.com/services/xml/rss/nyt/Climate.xml"
+category = "climate"
+[[feed]]
+name = "Mongabay"
+url = "https://news.mongabay.com/feed/"
+category = "climate"
+
+# ──────────────────── GDELT global firehose ───────────────────
+# GDELT monitors news in 100+ languages from almost every country,
+# updated every 15 minutes. These sweeps catch stories from outlets
+# we have no feed for. Syntax: https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/
+[[gdelt]]
+category = "world"
+query = '(earthquake OR explosion OR attack OR ceasefire OR "state of emergency" OR evacuation) sourcelang:english'
+[[gdelt]]
+category = "politics"
+query = '(election OR parliament OR president OR "prime minister" OR sanctions) sourcelang:english'
+[[gdelt]]
+category = "finance"
+query = '(stocks OR "central bank" OR inflation OR "interest rates" OR earnings OR bitcoin) sourcelang:english'
+[[gdelt]]
+category = "tech"
+query = '("artificial intelligence" OR startup OR cybersecurity OR smartphone OR semiconductor) sourcelang:english'
+[[gdelt]]
+category = "climate"
+query = '(wildfire OR hurricane OR cyclone OR flood OR heatwave OR "climate change") sourcelang:english'

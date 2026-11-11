@@ -1,0 +1,41 @@
+name: Website on GitHub Pages
+
+# Optional: publish the website on GitHub Pages, reading news from your Leak
+# server. Needs the LEAK_API_URL repository variable, and Pages enabled with
+# Settings → Pages → Source: "GitHub Actions". (The server also serves the
+# same website itself, so this is only for a free static front door.)
+
+on:
+  push:
+    branches: [main]
+    paths: ["web/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: vars.LEAK_API_URL != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point the site at the news server
+        env:
+          LEAK_API_URL: ${{ vars.LEAK_API_URL }}
+        run: printf 'window.LEAK_CONFIG = { apiBase: "%s" };\n' "${LEAK_API_URL%/}" > web/config.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4

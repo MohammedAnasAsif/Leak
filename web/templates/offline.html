@@ -1,9 +1,0 @@
-{% extends "base.html" %}
-{% block main %}
-<section class="empty empty--page">
-  <h1>You're offline</h1>
-  <p>Stories you've already opened still work. Reconnect and this page loads the latest news by itself.</p>
-  <p><button class="btn btn--solid" type="button" onclick="location.reload()">Try again</button> <a class="btn" href="saved.html">Saved stories</a></p>
-</section>
-<script>addEventListener('online',function(){location.reload()})</script>
-{% endblock %}

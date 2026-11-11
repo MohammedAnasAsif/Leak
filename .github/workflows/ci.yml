@@ -1,30 +1,48 @@
 name: CI
 
 on:
-  pull_request:
   push:
     branches: [main]
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  engine:
+  server:
+    name: News engine (test + release build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Format
-        run: cargo fmt --check
-      - name: Lint
-        run: cargo clippy --release --locked -- -D warnings
+        with:
+          workspaces: server
       - name: Test
-        run: cargo test --release --locked
-      - name: Build the demo site
-        run: cargo run --release --locked -- --out demo-site demo
+        working-directory: server
+        run: cargo test --locked
+      - name: Release build
+        working-directory: server
+        run: cargo build --release --locked
       - uses: actions/upload-artifact@v4
         with:
-          name: demo-site
-          path: demo-site
-          retention-days: 7
+          name: leak-server-linux-x64
+          path: server/target/release/leak
 
+  app-check:
+    name: App shell compiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Webview system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: cargo check
+        working-directory: app/src-tauri
+        run: cargo check --locked

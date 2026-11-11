@@ -1,0 +1,207 @@
+name: Build apps
+
+# Builds the Windows installer/.exe, the Android APK and (when Apple signing
+# secrets are configured) the iOS app. Download them from the run's
+# "Artifacts" section, or from the GitHub Release when you push a v* tag.
+#
+# Repository variable  LEAK_API_URL  = public https URL of your Leak server
+# (e.g. https://leak-news.fly.dev). The apps are pointed at it at build time.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - "app/**"
+      - "web/**"
+      - ".github/workflows/apps.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apps-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LEAK_API_URL: ${{ vars.LEAK_API_URL }}
+
+jobs:
+  windows:
+    name: Windows (.exe + installers)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: Point the app at the news server
+        shell: bash
+        run: |
+          if [ -n "$LEAK_API_URL" ]; then
+            printf 'window.LEAK_CONFIG = { apiBase: "%s" };\n' "${LEAK_API_URL%/}" > web/config.js
+          else
+            echo "::warning::LEAK_API_URL is not set; the app will ask for a server address in Settings."
+          fi
+      - run: npm ci
+        working-directory: app
+      - name: Build
+        working-directory: app
+        run: npx tauri build
+      - name: Collect
+        shell: bash
+        run: |
+          mkdir -p out
+          cp app/src-tauri/target/release/leak-app.exe out/Leak-portable.exe
+          cp app/src-tauri/target/release/bundle/nsis/*.exe out/
+          cp app/src-tauri/target/release/bundle/msi/*.msi out/
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leak-windows
+          path: out/*
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: out/*
+
+  android:
+    name: Android (.apk)
+    runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.2.12479018
+      BUILD_TOOLS: 34.0.0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Android NDK and build tools
+        run: |
+          sdkmanager "ndk;${NDK_VERSION}" "build-tools;${BUILD_TOOLS}" "platforms;android-34"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: Point the app at the news server
+        run: |
+          if [ -n "$LEAK_API_URL" ]; then
+            printf 'window.LEAK_CONFIG = { apiBase: "%s" };\n' "${LEAK_API_URL%/}" > web/config.js
+          else
+            echo "::warning::LEAK_API_URL is not set; the app will ask for a server address in Settings."
+          fi
+      - run: npm ci
+        working-directory: app
+      - name: Generate Android project
+        working-directory: app
+        run: |
+          npx tauri android init --ci
+          cp -r src-tauri/icons/android/* src-tauri/gen/android/app/src/main/res/
+      - name: Build release APK
+        working-directory: app
+        run: npx tauri android build --apk --ci
+      - name: Sign APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > release.jks
+            PASS="$ANDROID_KEYSTORE_PASSWORD"; ALIAS="$ANDROID_KEY_ALIAS"; KEYPASS="${ANDROID_KEY_PASSWORD:-$ANDROID_KEYSTORE_PASSWORD}"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret; signing with a throwaway key (fine for testing, but updates will need an uninstall first)."
+            PASS=leak-ci-pass; ALIAS=leak; KEYPASS=leak-ci-pass
+            keytool -genkeypair -keystore release.jks -alias "$ALIAS" -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PASS" -keypass "$KEYPASS" -dname "CN=Leak CI"
+          fi
+          UNSIGNED=$(find app/src-tauri/gen/android -name '*release-unsigned.apk' | head -1)
+          echo "unsigned: $UNSIGNED"
+          BT="$ANDROID_HOME/build-tools/${BUILD_TOOLS}"
+          mkdir -p out
+          "$BT/zipalign" -p -f 4 "$UNSIGNED" aligned.apk
+          "$BT/apksigner" sign --ks release.jks --ks-key-alias "$ALIAS" --ks-pass "pass:$PASS" --key-pass "pass:$KEYPASS" \
+            --out out/Leak-android.apk aligned.apk
+          "$BT/apksigner" verify out/Leak-android.apk
+          rm -f release.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leak-android
+          path: out/Leak-android.apk
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: out/Leak-android.apk
+
+  ios:
+    name: iOS
+    runs-on: macos-latest
+    env:
+      # Installable iOS builds need an Apple Developer account. Add these secrets
+      # to enable them (see README → "iOS"); without them this job only proves
+      # the app compiles for iOS.
+      APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+      IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_MOBILE_PROVISION: ${{ secrets.IOS_MOBILE_PROVISION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: Point the app at the news server
+        run: |
+          if [ -n "$LEAK_API_URL" ]; then
+            printf 'window.LEAK_CONFIG = { apiBase: "%s" };\n' "${LEAK_API_URL%/}" > web/config.js
+          fi
+      - run: npm ci
+        working-directory: app
+      - name: Compile check (no signing)
+        if: env.APPLE_DEVELOPMENT_TEAM == ''
+        run: |
+          echo "::notice::APPLE_DEVELOPMENT_TEAM secret not set: checking the iOS build compiles, but not producing an .ipa."
+          cargo build --manifest-path app/src-tauri/Cargo.toml --lib --release --target aarch64-apple-ios
+      - name: Build signed .ipa
+        if: env.APPLE_DEVELOPMENT_TEAM != ''
+        working-directory: app
+        run: |
+          npx tauri ios init --ci
+          cp -r src-tauri/icons/ios/* src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/ || true
+          npx tauri ios build --ci --export-method "${{ vars.IOS_EXPORT_METHOD || 'release-testing' }}"
+          mkdir -p ../out && find src-tauri/gen/apple/build -name '*.ipa' -exec cp {} ../out/Leak-ios.ipa \;
+      - uses: actions/upload-artifact@v4
+        if: env.APPLE_DEVELOPMENT_TEAM != ''
+        with:
+          name: leak-ios
+          path: out/Leak-ios.ipa
+      - uses: softprops/action-gh-release@v2
+        if: env.APPLE_DEVELOPMENT_TEAM != '' && startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: out/Leak-ios.ipa

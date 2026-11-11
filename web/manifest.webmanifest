@@ -1,0 +1,13 @@
+{
+  "name": "Leak — Live World News",
+  "short_name": "Leak",
+  "description": "The world, the moment it happens.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f3ee",
+  "theme_color": "#111110",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

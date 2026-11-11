@@ -1,0 +1,19 @@
+{
+  "name": "leak-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Tauri CLI wrapper for building the Leak apps (Windows, Android, iOS). The UI lives in ../web.",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "android:init": "tauri android init",
+    "android:build": "tauri android build",
+    "ios:init": "tauri ios init",
+    "ios:build": "tauri ios build",
+    "icons": "tauri icon app-icon.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

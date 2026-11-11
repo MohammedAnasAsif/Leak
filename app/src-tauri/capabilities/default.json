@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What the Leak UI may do: open publisher links in the system browser and show breaking-news notifications.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:default",
+    "notification:default"
+  ]
+}
