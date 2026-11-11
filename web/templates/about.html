@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block main %}
+<header class="page-head">
+  <h1>How {{ site.name }} works</h1>
+  <p>{{ site.description }}</p>
+</header>
+<div class="prose">
+  <ol class="steps">
+    <li><strong>Listen.</strong> Every few minutes {{ site.name }} checks {{ source_total }} news feeds from every region of the world.</li>
+    <li><strong>Group.</strong> Reports about the same event are grouped into one story, so you see every outlet's take side by side instead of the same news ten times.</li>
+    <li><strong>Rank.</strong> Stories rise when many outlets in many regions cover them, and fall as they age. Nobody edits the order by hand.</li>
+    <li><strong>Link out.</strong> We show headlines and short summaries, credited, and always link to the original reporting.</li>
+  </ol>
+
+  <h2>Get {{ site.name }}</h2>
+  <p>Install it straight from your browser (Add to Home Screen), or download the apps for Android and Windows from the <a href="{{ site.repo_url }}/releases/latest">latest release</a>. iPhone users can sideload the iOS app; instructions are in the <a href="{{ site.repo_url }}/blob/main/docs/IOS.md">iOS guide</a>.</p>
+
+  <h2>Privacy</h2>
+  <p>No accounts, no ads, no analytics, no cookies. Saved stories and settings stay on your device. Fonts are served from this site, not from a third party.</p>
+
+  <h2 id="sources">Sources and status</h2>
+  <p>{{ sources_ok }} of {{ source_total }} feeds answered on the last check. Delay is the typical time between an outlet publishing and {{ site.name }} showing it.</p>
+  <div class="table-wrap">
+  <table class="status">
+    <thead><tr><th scope="col">Outlet</th><th scope="col">Section</th><th scope="col">Region</th><th scope="col">Status</th><th scope="col">Delay</th></tr></thead>
+    <tbody>
+    {% for h in health %}
+      <tr><td>{{ h.name }}</td><td>{{ h.section }}</td><td>{{ h.region }}</td><td>{% if h.ok %}<span class="ok">Working</span>{% elif h.error %}<span class="bad" title="{{ h.error }}">Failing</span>{% else %}<span class="muted">Not checked yet</span>{% endif %}</td><td>{{ h.lag }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Help build it</h2>
+  <p>{{ site.name }} is open source. Add a news source, fix a bug or translate it on <a href="{{ site.repo_url }}">GitHub</a>. Publishers who want a feed removed can open an issue there and it will be removed promptly.</p>
+</div>
+{% endblock %}

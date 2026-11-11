@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block main %}
+<header class="page-head">
+  <h1>Saved stories</h1>
+  <p>Saved on this device only. Nothing is sent anywhere.</p>
+</header>
+<ul class="results" data-saved></ul>
+<section class="empty" data-saved-empty hidden>
+  <h2>Nothing saved yet</h2>
+  <p>Press Save on any story to keep it here.</p>
+</section>
+{% endblock %}

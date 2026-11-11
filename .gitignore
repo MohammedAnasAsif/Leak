@@ -1,0 +1,13 @@
+/target
+/public
+/state
+/demo-site
+/bin
+apps/shell/node_modules
+apps/shell/src-tauri/target
+apps/shell/src-tauri/gen
+apps/ios/.build
+apps/ios/xtool
+*.jks
+*.keystore
+.DS_Store

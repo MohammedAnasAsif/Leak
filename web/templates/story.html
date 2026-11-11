@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros.html" import card, kicker, strip, when %}
+{% block main %}
+<article class="story" data-story="{{ story.id }}" data-created="{{ story.created }}" data-title="{{ story.title }}" data-path="{{ story.path }}" data-section="{{ story.section_name }}">
+  <header class="story__head">
+    {{ kicker(story) }}
+    <h1 class="story__title">{{ story.title }}</h1>
+    {% if story.dek %}<p class="story__dek">{{ story.dek }} <span class="credit">Summary: {{ story.dek_source }}</span></p>{% endif %}
+    <dl class="facts">
+      <div><dt>Outlets</dt><dd>{{ story.source_count }}</dd></div>
+      <div><dt>Regions</dt><dd>{{ story.regions|length }}</dd></div>
+      <div><dt>First report</dt><dd>{{ when(story.created, story.created_clock) }}</dd></div>
+      <div><dt>Latest</dt><dd>{{ when(story.updated, story.created_clock) }}</dd></div>
+    </dl>
+    {{ strip(story, true) }}
+    <ul class="legend">{% for r in story.regions %}<li><i class="r-{{ r.slug }}"></i>{{ r.name }} {{ r.count }}</li>{% endfor %}</ul>
+    <div class="actions">
+      <button type="button" class="btn" data-action="save" aria-pressed="false"><span data-label>Save</span></button>
+      <button type="button" class="btn" data-action="listen"><span data-label>Listen</span></button>
+      <button type="button" class="btn" data-action="share">Share</button>
+    </div>
+  </header>
+
+  <div class="story__body">
+    <p class="lede">
+      {%- if story.source_count == 1 -%}
+        So far only {{ story.first_source }} is reporting this. {{ site.name }} will add other outlets here as they pick it up.
+      {%- else -%}
+        {{ story.first_source }} was first to report this, at <time datetime="{{ story.created }}" data-clock>{{ story.created_clock }}</time>. {{ story.source_count - 1 }} more outlet{% if story.source_count > 2 %}s{% endif %} across {{ story.regions|length }} region{% if story.regions|length != 1 %}s{% endif %} have covered it since. Read how each one tells it below, then open the full reports.
+      {%- endif -%}
+    </p>
+
+    <section aria-labelledby="who">
+      <h2 id="who">Who's reporting</h2>
+      {% for r in story.regions %}
+      <div class="region">
+        <h3><i class="r-{{ r.slug }}" aria-hidden="true"></i>{{ r.name }}</h3>
+        <ul class="reports">
+          {% for c in story.coverage %}{% if c.region == r.name %}
+          <li class="report">
+            <p class="report__src">{{ c.source }} {{ when(c.published, c.clock) }}</p>
+            <h4 class="report__title"><a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.title }}</a></h4>
+            {% if c.snippet %}<p class="report__snip">{{ c.snippet }}</p>{% endif %}
+          </li>
+          {% endif %}{% endfor %}
+        </ul>
+      </div>
+      {% endfor %}
+    </section>
+
+    {% if story.coverage|length > 1 %}
+    <section aria-labelledby="timeline">
+      <h2 id="timeline">How it spread</h2>
+      <ol class="timeline">
+        {% for c in story.coverage %}
+        <li><time datetime="{{ c.published }}" data-clock>{{ c.clock }}</time><span><strong>{{ c.source }}</strong> {{ c.title }}</span></li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% endif %}
+
+    {% if story.tags %}
+    <section aria-labelledby="topics">
+      <h2 id="topics">Topics</h2>
+      <p class="tags">{% for t in story.tags %}<a href="../search.html?q={{ t|urlencode }}">{{ t }}</a>{% endfor %}</p>
+    </section>
+    {% endif %}
+
+    {% if story.related %}
+    <section aria-labelledby="related">
+      <h2 id="related">Related stories</h2>
+      <ul class="plain-list">{% for r in story.related %}<li><a href="../{{ r.path }}">{{ r.title }}</a> <span class="muted">{{ r.section_name }}</span></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+  </div>
+
+  {% if more %}
+  <aside class="story__more" aria-labelledby="more">
+    <h2 id="more">More in {{ story.section_name }}</h2>
+    {% for s in more %}{{ card(s, "../", "compact") }}{% endfor %}
+  </aside>
+  {% endif %}
+</article>
+{% endblock %}

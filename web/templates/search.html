@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block main %}
+<header class="page-head">
+  <h1>Search</h1>
+  <form class="search" role="search" data-search>
+    <label class="visually-hidden" for="q">Search stories</label>
+    <input id="q" name="q" type="search" placeholder="A place, a person, a topic" autocomplete="off" autofocus>
+    <button class="btn btn--solid" type="submit">Search</button>
+  </form>
+  <p class="muted" data-search-status>Searches every story from the last week. Press / on any page to jump here.</p>
+</header>
+<ul class="results" data-results></ul>
+{% endblock %}

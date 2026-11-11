@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import strip, when %}
+{% block main %}
+<header class="page-head">
+  <h1>Today's brief</h1>
+  <p>{{ generated_date }}. The day's ten most important stories, chosen by how widely they're covered. About a minute to read, or press Listen.</p>
+  <div class="actions"><button type="button" class="btn" data-action="listen-brief"><span data-label>Listen to the brief</span></button></div>
+</header>
+<ol class="brief">
+  {% for s in stories %}
+  <li class="brief__item" data-story="{{ s.id }}">
+    <p class="brief__sec" style="--sec:var(--sec-{{ s.section }})">{{ s.section_name }}</p>
+    <h2 class="brief__title"><a href="{{ s.path }}">{{ s.title }}</a></h2>
+    {% if s.dek %}<p class="brief__dek">{{ s.dek }}</p>{% endif %}
+    <p class="meta"><span>{{ s.source_count }} outlet{% if s.source_count != 1 %}s{% endif %}</span>{{ when(s.updated, s.created_clock) }}</p>
+  </li>
+  {% else %}
+  <li class="empty"><p>The brief fills in once today's first stories arrive.</p></li>
+  {% endfor %}
+</ol>
+{% endblock %}

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "The remote site gets no access to native APIs; only the local fallback page uses core defaults.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

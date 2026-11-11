@@ -1,0 +1,116 @@
+# Builds the Windows .exe and the Android .apk and attaches them to a GitHub Release.
+# Run it from the Actions tab ("Run workflow") or push a tag like v0.2.0.
+name: Release apps
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  # The apps open this address. Set a repository variable LEAK_SITE_URL to override.
+  LEAK_SITE_URL: ${{ vars.LEAK_SITE_URL || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: apps/shell
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/shell/src-tauri
+      - run: npm ci
+      - run: npx tauri build --bundles nsis
+      - name: Collect files
+        shell: bash
+        run: |
+          mkdir -p ../../out
+          cp src-tauri/target/release/leak-app.exe ../../out/Leak-portable.exe
+          cp src-tauri/target/release/bundle/nsis/*-setup.exe ../../out/Leak-setup.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: out/*
+
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/shell
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install NDK and build tools
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" "platforms;android-35" "build-tools;35.0.0" > /dev/null
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Add Android Rust targets
+        run: rustup target add aarch64-linux-android armv7-linux-androideabi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/shell/src-tauri
+      - run: npm ci
+      - name: Generate the Android project
+        run: npx tauri android init --ci
+      - name: Build APK
+        run: npx tauri android build --apk --target aarch64 --target armv7
+      - name: Sign APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          APK=$(find src-tauri/gen/android/app/build/outputs/apk -name "*release-unsigned.apk" | head -1)
+          BT="$ANDROID_HOME/build-tools/35.0.0"
+          if [ -n "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > release.jks
+            PW="$ANDROID_KEYSTORE_PASSWORD"; ALIAS="$ANDROID_KEY_ALIAS"
+          else
+            echo "::warning::No ANDROID_KEYSTORE_BASE64 secret. Using a one-off key, so this APK can't update an earlier install. See docs/RELEASING.md."
+            PW=leak-temporary; ALIAS=leak
+            keytool -genkeypair -keystore release.jks -alias leak -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PW" -keypass "$PW" -dname "CN=Leak" > /dev/null
+          fi
+          "$BT/zipalign" -p -f 4 "$APK" aligned.apk
+          mkdir -p ../../out
+          "$BT/apksigner" sign --ks release.jks --ks-key-alias "$ALIAS" --ks-pass "pass:$PW" --key-pass "pass:$PW" --out ../../out/Leak.apk aligned.apk
+          rm -f release.jks
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/*
+
+  publish:
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('app-build-{0}', github.run_number) }}
+          name: ${{ github.ref_type == 'tag' && format('Leak {0}', github.ref_name) || format('Leak app build {0}', github.run_number) }}
+          make_latest: true
+          body: |
+            **Android:** download `Leak.apk`, open it, and allow installs from your browser when asked.
+            **Windows:** run `Leak-setup.exe` to install, or `Leak-portable.exe` to run without installing. If SmartScreen warns you, choose More info, then Run anyway (the app is open source but not code-signed).
+            **iPhone:** see [docs/IOS.md](https://github.com/${{ github.repository }}/blob/main/docs/IOS.md), or open the website in Safari and choose Share, then Add to Home Screen.
+          files: out/*

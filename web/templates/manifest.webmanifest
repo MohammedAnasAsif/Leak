@@ -1,0 +1,19 @@
+{
+  "name": {{ site.name|tojson }},
+  "short_name": {{ site.name|tojson }},
+  "description": {{ site.description|tojson }},
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F2F4F6",
+  "theme_color": "#10213A",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Today's brief", "url": "./brief.html" },
+    { "name": "Saved stories", "url": "./saved.html" }
+  ]
+}

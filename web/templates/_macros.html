@@ -1,0 +1,48 @@
+{% macro when(iso, clock) -%}
+<time datetime="{{ iso }}" data-rel title="{{ clock }}">{{ clock }}</time>
+{%- endmacro %}
+
+{% macro strip(s, big=false) -%}
+<span class="strip{% if big %} strip--big{% endif %}" role="img" aria-label="Coverage by region: {% for r in s.regions %}{{ r.count }} in {{ r.name }}{% if not loop.last %}, {% endif %}{% endfor %}">
+{%- for r in s.regions %}<i class="r-{{ r.slug }}" style="flex:{{ r.count }}"></i>{% endfor -%}
+</span>
+{%- endmacro %}
+
+{% macro kicker(s) -%}
+<p class="kicker"><span class="kicker__sec" style="--sec:var(--sec-{{ s.section }})">{{ s.section_name }}</span>
+{%- if s.breaking %}<span class="flag flag--breaking">Breaking</span>{% elif s.developing %}<span class="flag">Developing</span>{% endif -%}
+<span class="flag flag--new" hidden>New to you</span></p>
+{%- endmacro %}
+
+{% macro card(s, root, size="normal") -%}
+<article class="card card--{{ size }}" data-story="{{ s.id }}" data-created="{{ s.created }}">
+  {{ kicker(s) }}
+  <h3 class="card__title"><a href="{{ root }}{{ s.path }}">{{ s.title }}</a></h3>
+  {%- if size != "compact" and s.dek %}
+  <p class="card__dek">{{ s.dek }}</p>
+  {%- endif %}
+  <p class="meta"><span>{{ s.source_count }} outlet{% if s.source_count != 1 %}s{% endif %}</span>{{ when(s.updated, s.created_clock) }}</p>
+  {{ strip(s) }}
+</article>
+{%- endmacro %}
+
+{% macro wire_list(items, root, label="The wire") -%}
+<section class="wire" aria-labelledby="wire-h">
+  <div class="wire__head">
+    <h2 id="wire-h">{{ label }}</h2>
+    <p>Every headline as it lands. The brighter the marker, the newer it is.</p>
+  </div>
+  <ol class="wire__list" reversed>
+  {%- for w in items %}
+    <li class="wire__item" data-published="{{ w.published }}">
+      {{ when(w.published, w.clock) }}
+      <div>
+        <a href="{{ root }}{{ w.story_path }}"><span class="mark">{{ w.title }}</span></a>
+        <span class="wire__src">{{ w.source }}{% if w.story_sources > 1 %}<span class="wire__more">+{{ w.story_sources - 1 }} more</span>{% endif %}</span>
+      </div>
+    </li>
+  {%- endfor %}
+  </ol>
+  {% if items|length > 8 %}<button type="button" class="btn wire__toggle" data-action="wire-all">Show all {{ items|length }} headlines</button>{% endif %}
+</section>
+{%- endmacro %}

@@ -1,0 +1,12 @@
+{
+  "name": "leak-shell",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Leak desktop and Android app shell (Tauri 2)",
+  "scripts": {
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

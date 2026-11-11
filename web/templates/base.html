@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="{{ site.language }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{ page.title }}</title>
+<meta name="description" content="{{ page.description }}">
+<link rel="canonical" href="{{ page.canonical }}">
+<meta property="og:site_name" content="{{ site.name }}">
+<meta property="og:title" content="{% block og_title %}{{ page.title }}{% endblock %}">
+<meta property="og:description" content="{{ page.description }}">
+<meta property="og:type" content="{% if page.kind == 'story' %}article{% else %}website{% endif %}">
+<meta property="og:url" content="{{ page.canonical }}">
+<meta property="og:image" content="{{ site.base_url }}/assets/icons/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#F2F4F6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0C1626" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="{{ root }}manifest.webmanifest">
+<link rel="icon" href="{{ root }}assets/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="{{ root }}assets/icons/icon-180.png">
+<link rel="alternate" type="application/rss+xml" title="{{ site.name }}: top stories" href="{{ root }}feed.xml">
+<link rel="preload" href="{{ root }}assets/fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{{ root }}assets/fonts/schibsted-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{{ root }}assets/css/site.css?v={{ v }}">
+<style>:root{ {% for s in sections %}--sec-{{ s.id }}:{{ s.color }};{% endfor %} }</style>
+<script>try{var d=document.documentElement,t=localStorage.getItem("leak:theme"),z=localStorage.getItem("leak:size");if(t)d.dataset.theme=t;if(z)d.dataset.size=z}catch(e){}</script>
+<script defer src="{{ root }}assets/js/app.js?v={{ v }}"></script>
+{% block head %}{% endblock %}
+</head>
+<body data-kind="{{ page.kind }}" data-root="{{ root }}" data-generated="{{ generated }}"{% if live %} data-live="{{ root }}{{ live }}"{% endif %}>
+<a class="skip" href="#main">Skip to stories</a>
+{% if demo %}<p class="demo-banner">Demo build: every outlet, place and event here is invented. Real builds show live news.</p>{% endif %}
+<header class="masthead">
+  <div class="masthead__row">
+    <a class="wordmark" href="{{ root }}index.html" aria-label="{{ site.name }} home">
+      <svg class="wordmark__mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M16 6.5c3.6 5 6.2 8.6 6.2 11.9a6.2 6.2 0 0 1-12.4 0c0-3.3 2.6-6.9 6.2-11.9Z" fill="var(--signal)"/></svg>
+      <span>{{ site.name }}</span>
+    </a>
+    <p class="pulse"><span class="pulse__dot" aria-hidden="true"></span>Updated <time datetime="{{ generated }}" data-rel>{{ generated_clock }}</time></p>
+    <nav class="tools" aria-label="Tools">
+      <a href="{{ root }}brief.html"{% if page.kind == 'brief' %} aria-current="page"{% endif %}>Brief</a>
+      <a href="{{ root }}search.html"{% if page.kind == 'search' %} aria-current="page"{% endif %}>Search</a>
+      <a href="{{ root }}saved.html"{% if page.kind == 'saved' %} aria-current="page"{% endif %}>Saved</a>
+      <button type="button" class="tools__theme" data-action="theme" aria-label="Change theme" title="Change theme">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18V3Z" fill="currentColor"/><circle cx="12" cy="12" r="8.25" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </nav>
+  </div>
+  <nav class="sections" aria-label="Sections">
+    <a href="{{ root }}index.html"{% if page.kind == 'home' %} aria-current="page"{% endif %}>Top stories</a>
+    {%- for s in sections %}
+    <a href="{{ root }}{{ s.path }}" style="--sec:var(--sec-{{ s.id }})"{% if page.section == s.id %} aria-current="page"{% endif %}>{{ s.name }}</a>
+    {%- endfor %}
+  </nav>
+</header>
+<div class="newpill" hidden><button type="button" data-action="refresh"><span class="pulse__dot" aria-hidden="true"></span><span data-newpill-text>New stories</span></button></div>
+<main id="main">
+{% block main %}{% endblock %}
+</main>
+<footer class="foot">
+  <div class="foot__inner">
+    <p class="foot__lead"><strong>{{ site.name }}</strong> {{ site.tagline }}</p>
+    <p>Headlines and short summaries belong to the outlets named beside them; every story links to the original reporting. {{ site.name }} is open source, free, and has no ads, trackers or accounts.</p>
+    <nav class="foot__links" aria-label="More">
+      <a href="{{ root }}about.html">How it works</a>
+      <a href="{{ root }}about.html#sources">Sources and status</a>
+      <a href="{{ root }}feed.xml">RSS</a>
+      <a href="{{ site.repo_url }}/releases/latest">Get the app</a>
+      <a href="{{ site.repo_url }}">Source code</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
