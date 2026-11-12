@@ -5,7 +5,7 @@ name: Build apps
 # "Artifacts" section, or from the GitHub Release when you push a v* tag.
 #
 # Repository variable  LEAK_API_URL  = public https URL of your Leak server
-# (e.g. https://leak-news.fly.dev). The apps are pointed at it at build time.
+# (e.g. https://leak-news.onrender.com). The apps are pointed at it at build time.
 
 on:
   push:

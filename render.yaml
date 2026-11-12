@@ -1,0 +1,23 @@
+# Render Blueprint: runs the Leak news engine on Render's FREE plan (no card).
+# Render pulls the ready-built image that GitHub Actions publishes to GHCR, so
+# nothing is compiled on Render and no build minutes are used.
+#
+# One-time setup: Render dashboard → New → Blueprint → pick this repo.
+# The free plan sleeps after 15 idle minutes; the engine pings itself every
+# 10 minutes (RENDER is set automatically) so it keeps catching news.
+services:
+  - type: web
+    name: leak-news
+    runtime: image
+    image:
+      url: ghcr.io/mohammedanasasif/leak:latest
+    plan: free
+    region: singapore
+    healthCheckPath: /api/health
+    envVars:
+      - key: RUST_LOG
+        value: leak=info
+      # Free AI key for savage headlines (Groq or Google AI Studio). Optional:
+      # leave empty and headlines stay as published.
+      - key: LEAK_LLM_API_KEY
+        sync: false

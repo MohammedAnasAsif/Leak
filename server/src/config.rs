@@ -102,7 +102,8 @@ pub struct LlmConfig {
     /// "anthropic" or "openai" (any OpenAI-compatible chat API).
     pub provider: String,
     pub api_key: String,
-    pub model: String,
+    /// Models in preference order; on a free-tier limit the next is used.
+    pub models: Vec<String>,
     pub base_url: String,
     pub daily_limit: u32,
     pub max_age_hours: i64,
@@ -115,15 +116,39 @@ impl LlmConfig {
         if matches!(var("LEAK_SAVAGE").as_deref(), Some("0" | "off" | "false")) {
             return None;
         }
-        let provider = var("LEAK_LLM_PROVIDER").unwrap_or_else(|| "anthropic".into()).to_lowercase();
-        let provider = if provider == "anthropic" { provider } else { "openai".to_string() };
-        let (default_model, default_base) = if provider == "anthropic" {
-            ("claude-haiku-5-5", "https://api.anthropic.com")
+        // Recognise free-tier providers from the key itself, so a single
+        // LEAK_LLM_API_KEY is all the setup needed.
+        let detected = if api_key.starts_with("gsk_") {
+            "groq"
+        } else if api_key.starts_with("AIza") {
+            "gemini"
+        } else if api_key.starts_with("sk-ant-") {
+            "anthropic"
         } else {
-            ("gpt-4o-mini", "https://api.openai.com/v1")
+            "openai"
         };
+        let provider = var("LEAK_LLM_PROVIDER").map(|p| p.to_lowercase()).unwrap_or_else(|| detected.into());
+        let (default_models, default_base) = match provider.as_str() {
+            "anthropic" => ("claude-haiku-5-5", "https://api.anthropic.com"),
+            // Groq free tier (no card). Checked Nov 2026: llama-3.x were retired
+            // in Aug 2026; these are the current free models, best first.
+            "groq" => ("openai/gpt-oss-120b,openai/gpt-oss-20b,qwen/qwen3.8-27b", "https://api.groq.com/openai/v1"),
+            // Google AI Studio free tier (no card), via its OpenAI-compatible API.
+            "gemini" => ("gemini-flash-lite-latest,gemini-flash-latest", "https://generativelanguage.googleapis.com/v1beta/openai"),
+            _ => ("gpt-4o-mini", "https://api.openai.com/v1"),
+        };
+        let provider = if provider == "anthropic" { provider } else { "openai".to_string() };
+        let models: Vec<String> = var("LEAK_LLM_MODEL")
+            .unwrap_or_else(|| default_models.into())
+            .split(',')
+            .map(|m| m.trim().to_string())
+            .filter(|m| !m.is_empty())
+            .collect();
+        if models.is_empty() {
+            return None;
+        }
         Some(Self {
-            model: var("LEAK_LLM_MODEL").unwrap_or_else(|| default_model.into()),
+            models,
             base_url: var("LEAK_LLM_BASE_URL").unwrap_or_else(|| default_base.into()).trim_end_matches('/').to_string(),
             daily_limit: var("LEAK_SAVAGE_DAILY_LIMIT").and_then(|v| v.parse().ok()).unwrap_or(3000),
             max_age_hours: var("LEAK_SAVAGE_MAX_AGE_HOURS").and_then(|v| v.parse().ok()).unwrap_or(12),
@@ -141,7 +166,9 @@ impl Env {
             sources_path: std::env::var("LEAK_SOURCES").unwrap_or_else(|_| "sources.toml".into()),
             web_dir: std::env::var("LEAK_WEB_DIR").unwrap_or_else(|_| "../web".into()),
             data_dir: std::env::var("LEAK_DATA_DIR").unwrap_or_else(|_| "data".into()),
+            // Render sets RENDER_EXTERNAL_URL automatically.
             public_url: std::env::var("LEAK_PUBLIC_URL")
+                .or_else(|_| std::env::var("RENDER_EXTERNAL_URL"))
                 .ok()
                 .map(|s| s.trim_end_matches('/').to_string())
                 .filter(|s| s.starts_with("https://")),

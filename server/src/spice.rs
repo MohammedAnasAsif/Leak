@@ -24,7 +24,7 @@ use regex::Regex;
 use serde::Deserialize;
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Stories per API call. Batching keeps cost and rate-limit pressure low.
 const BATCH: usize = 12;
@@ -62,10 +62,25 @@ pub struct Spice {
     tried: Mutex<HashSet<String>>,
     /// (day-of-year, count) for the daily cap.
     used_today: Mutex<(u32, u32)>,
+    /// Per model: rate-limited or unavailable until this moment.
+    cooldown: Mutex<Vec<Option<Instant>>>,
+}
+
+/// Why a call failed: wait and try another model, or a real error.
+enum CallErr {
+    Cooldown(Duration, String),
+    Other(anyhow::Error),
+}
+
+impl<E: Into<anyhow::Error>> From<E> for CallErr {
+    fn from(e: E) -> Self {
+        CallErr::Other(e.into())
+    }
 }
 
 impl Spice {
     pub fn new(cfg: LlmConfig, store: Arc<Store>) -> Arc<Self> {
+        let cfg_models_len = cfg.models.len();
         let http = reqwest::Client::builder()
             .timeout(Duration::from_secs(45))
             .user_agent("LeakNews/0.1 (+https://github.com/MohammedAnasAsif/Leak)")
@@ -77,11 +92,12 @@ impl Spice {
             http,
             tried: Mutex::new(HashSet::new()),
             used_today: Mutex::new((0, 0)),
+            cooldown: Mutex::new(vec![None; cfg_models_len]),
         })
     }
 
     pub fn spawn(self: &Arc<Self>) {
-        tracing::info!(provider = %self.cfg.provider, model = %self.cfg.model, daily_limit = self.cfg.daily_limit, "savage headlines on");
+        tracing::info!(provider = %self.cfg.provider, models = %self.cfg.models.join(", "), daily_limit = self.cfg.daily_limit, "savage headlines on");
         let me = self.clone();
         tokio::spawn(async move {
             let mut live = me.store.live.subscribe();
@@ -125,10 +141,38 @@ impl Spice {
         self.cfg.daily_limit.saturating_sub(u.1)
     }
 
+    /// First model (in preference order) that is not cooling down.
+    fn pick_model(&self) -> Option<(usize, String)> {
+        let now = Instant::now();
+        let cd = self.cooldown.lock();
+        self.cfg
+            .models
+            .iter()
+            .enumerate()
+            .find(|(i, _)| cd[*i].map_or(true, |t| t <= now))
+            .map(|(i, m)| (i, m.clone()))
+    }
+
+    fn cool(&self, idx: usize, d: Duration) {
+        self.cooldown.lock()[idx] = Some(Instant::now() + d);
+    }
+
+    /// Put a batch back so it is retried later.
+    fn requeue(&self, batch: &[Arc<Article>]) {
+        {
+            let mut tried = self.tried.lock();
+            for a in batch {
+                tried.remove(&a.id);
+            }
+        }
+        let mut used = self.used_today.lock();
+        used.1 = used.1.saturating_sub(batch.len() as u32);
+    }
+
     /// Rewrites up to one batch. Returns how many stories were attempted.
     async fn run_batch(&self) -> usize {
         let left = self.budget_left() as usize;
-        if left == 0 {
+        if left == 0 || self.pick_model().is_none() {
             return 0;
         }
         let batch: Vec<Arc<Article>> = {
@@ -170,27 +214,29 @@ impl Spice {
             ));
         }
 
-        match self.complete(&user).await {
-            Ok(text) => {
-                let n = self.apply(&batch, &text);
-                tracing::debug!(sent = batch.len(), rewritten = n, "savage batch");
-            }
-            Err(e) => {
-                tracing::warn!("savage headline call failed: {e}");
-                // Let these be retried later, and back off.
-                {
-                    let mut tried = self.tried.lock();
-                    for a in &batch {
-                        tried.remove(&a.id);
-                    }
+        // Free tiers run out: on a rate limit, rest that model and use the next.
+        let text = loop {
+            let Some((idx, model)) = self.pick_model() else {
+                tracing::info!("all savage-headline models are resting (free-tier limits); stories keep their original headlines meanwhile");
+                self.requeue(&batch);
+                return 0;
+            };
+            match self.complete(&model, &user).await {
+                Ok(t) => break t,
+                Err(CallErr::Cooldown(d, why)) => {
+                    tracing::warn!(model = %model, rest_secs = d.as_secs(), "savage model resting: {why}");
+                    self.cool(idx, d);
                 }
-                {
-                    let mut used = self.used_today.lock();
-                    used.1 = used.1.saturating_sub(batch.len() as u32);
+                Err(CallErr::Other(e)) => {
+                    tracing::warn!(model = %model, "savage headline call failed: {e}");
+                    self.requeue(&batch);
+                    tokio::time::sleep(Duration::from_secs(60)).await;
+                    return batch.len();
                 }
-                tokio::time::sleep(Duration::from_secs(30)).await;
             }
-        }
+        };
+        let n = self.apply(&batch, &text);
+        tracing::debug!(sent = batch.len(), rewritten = n, "savage batch");
         batch.len()
     }
 
@@ -204,6 +250,9 @@ impl Spice {
             n: usize,
             h: Option<String>,
         }
+        static THINK: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?s)<think>.*?</think>").unwrap());
+        let text = THINK.replace_all(text, "");
+        let text = text.as_ref();
         let json = match (text.find('{'), text.rfind('}')) {
             (Some(s), Some(e)) if e > s => &text[s..=e],
             _ => {
@@ -227,53 +276,86 @@ impl Spice {
         done
     }
 
-    async fn complete(&self, user: &str) -> anyhow::Result<String> {
-        if self.cfg.provider == "anthropic" {
-            let body = serde_json::json!({
-                "model": self.cfg.model,
-                "max_tokens": 1200,
-                "temperature": 0.9,
-                "system": SYSTEM_PROMPT,
-                "messages": [{ "role": "user", "content": user }],
-            });
-            let res = self
-                .http
+    async fn complete(&self, model: &str, user: &str) -> Result<String, CallErr> {
+        let req = if self.cfg.provider == "anthropic" {
+            self.http
                 .post(format!("{}/v1/messages", self.cfg.base_url))
                 .header("x-api-key", &self.cfg.api_key)
                 .header("anthropic-version", "2023-06-01")
-                .json(&body)
-                .send()
-                .await?;
-            let status = res.status();
-            let v: serde_json::Value = res.json().await?;
-            if !status.is_success() {
-                anyhow::bail!("HTTP {status}: {}", v["error"]["message"].as_str().unwrap_or("unknown error"));
-            }
-            Ok(v["content"][0]["text"].as_str().unwrap_or_default().to_string())
+                .json(&serde_json::json!({
+                    "model": model,
+                    "max_tokens": 1200,
+                    "temperature": 0.9,
+                    "system": SYSTEM_PROMPT,
+                    "messages": [{ "role": "user", "content": user }],
+                }))
         } else {
-            let body = serde_json::json!({
-                "model": self.cfg.model,
+            let mut body = serde_json::json!({
+                "model": model,
                 "temperature": 0.9,
                 "messages": [
                     { "role": "system", "content": SYSTEM_PROMPT },
                     { "role": "user", "content": user },
                 ],
             });
-            let res = self
-                .http
+            // Reasoning models: keep thinking short, it only costs free quota.
+            if model.contains("gpt-oss") {
+                body["reasoning_effort"] = "low".into();
+            }
+            self.http
                 .post(format!("{}/chat/completions", self.cfg.base_url))
                 .bearer_auth(&self.cfg.api_key)
                 .json(&body)
-                .send()
-                .await?;
-            let status = res.status();
-            let v: serde_json::Value = res.json().await?;
-            if !status.is_success() {
-                anyhow::bail!("HTTP {status}: {}", v["error"]["message"].as_str().unwrap_or("unknown error"));
-            }
-            Ok(v["choices"][0]["message"]["content"].as_str().unwrap_or_default().to_string())
+        };
+        let res = req.send().await?;
+        let status = res.status().as_u16();
+        let retry_after = res
+            .headers()
+            .get("retry-after")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.trim().parse::<f64>().ok());
+        let v: serde_json::Value = res.json().await.unwrap_or_default();
+        let msg = v["error"]["message"]
+            .as_str()
+            .or_else(|| v["error"].as_str())
+            .or_else(|| v[0]["error"]["message"].as_str())
+            .unwrap_or("")
+            .to_string();
+        if let Some(d) = classify(status, retry_after, &msg) {
+            return Err(CallErr::Cooldown(d, format!("HTTP {status} {msg}")));
         }
+        if !(200..300).contains(&status) {
+            return Err(CallErr::Other(anyhow::anyhow!("HTTP {status}: {msg}")));
+        }
+        let text = if self.cfg.provider == "anthropic" {
+            v["content"][0]["text"].as_str()
+        } else {
+            v["choices"][0]["message"]["content"].as_str()
+        };
+        Ok(text.unwrap_or_default().to_string())
     }
+}
+
+/// Decides whether a failed call means "rest this model for a while".
+/// Free tiers answer 429 when a per-minute or per-day quota is used up, and
+/// providers retire models (404 / "model not found"), so the next one is tried.
+fn classify(status: u16, retry_after: Option<f64>, msg: &str) -> Option<Duration> {
+    let m = msg.to_lowercase();
+    if status == 429 || status == 503 && m.contains("overload") {
+        let daily = ["per day", "daily", "(rpd)", "(tpd)", "requests per day", "tokens per day", "quota"]
+            .iter()
+            .any(|k| m.contains(k));
+        let hinted = retry_after.unwrap_or(60.0).clamp(5.0, 6.0 * 3600.0);
+        let secs = if daily { hinted.max(1800.0) } else { hinted };
+        return Some(Duration::from_secs_f64(secs));
+    }
+    let gone = status == 404
+        || (status == 400 || status == 410)
+            && m.contains("model")
+            && ["not found", "does not exist", "decommission", "deprecat", "not supported", "no longer"]
+                .iter()
+                .any(|k| m.contains(k));
+    gone.then(|| Duration::from_secs(6 * 3600))
 }
 
 /// Tidies a model headline; rejects empty, over-long or unchanged ones.
@@ -322,6 +404,20 @@ mod tests {
         assert!(is_sensitive(&art("Wildfire forces thousands to evacuate", "")));
         assert!(!is_sensitive(&art("Central bank holds rates again", "Markets shrug.")));
         assert!(!is_sensitive(&art("Chipmaker unveils 2nm laptop processor", "")));
+    }
+
+    #[test]
+    fn free_tier_limits() {
+        // Per-minute limit: rest for the hinted time.
+        assert_eq!(classify(429, Some(7.0), "Rate limit reached for requests per minute"), Some(Duration::from_secs(7)));
+        // Daily quota: rest at least 30 minutes.
+        assert_eq!(classify(429, Some(20.0), "Rate limit reached ... tokens per day (TPD)"), Some(Duration::from_secs(1800)));
+        // Retired model: skip it for hours.
+        assert_eq!(classify(400, None, "The model `llama-3.3-70b-versatile` has been decommissioned"), Some(Duration::from_secs(21600)));
+        assert_eq!(classify(404, None, ""), Some(Duration::from_secs(21600)));
+        // Bad key / server errors are real errors, not cooldowns.
+        assert_eq!(classify(401, None, "Invalid API Key"), None);
+        assert_eq!(classify(500, None, "oops"), None);
     }
 
     #[test]

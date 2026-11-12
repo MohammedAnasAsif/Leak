@@ -43,6 +43,32 @@ async fn main() -> anyhow::Result<()> {
         None => tracing::info!("savage headlines off (set LEAK_LLM_API_KEY to enable)"),
     }
 
+    // Free hosts (Render) put a service to sleep after ~15 idle minutes, which
+    // would stop the engine from catching news. A light self-ping through the
+    // public URL every 10 minutes keeps it awake. On by default on Render;
+    // LEAK_KEEPALIVE=1/0 forces it on/off elsewhere.
+    let keepalive = match std::env::var("LEAK_KEEPALIVE").ok().as_deref() {
+        Some("0" | "off" | "false") => false,
+        Some(_) => true,
+        None => std::env::var("RENDER").is_ok(),
+    };
+    if let (true, Some(public)) = (keepalive, env.public_url.clone()) {
+        tracing::info!(url = %public, "keep-alive ping every 10 min");
+        tokio::spawn(async move {
+            let http = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .expect("http client");
+            let url = format!("{public}/api/health?keepalive=1");
+            loop {
+                tokio::time::sleep(std::time::Duration::from_secs(600)).await;
+                if let Err(e) = http.get(&url).send().await {
+                    tracing::warn!("keep-alive ping failed: {e}");
+                }
+            }
+        });
+    }
+
     // Periodic snapshot so restarts are instant.
     {
         let store = store.clone();

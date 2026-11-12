@@ -1,8 +1,10 @@
 name: Server image + deploy
 
 # Builds the Leak news server (which also serves the website) as a Docker
-# image on GitHub Container Registry: ghcr.io/<owner>/leak:latest
-# If the FLY_API_TOKEN secret is set, it is also deployed to Fly.io (fly.toml).
+# image on GitHub Container Registry (free for public repos):
+#   ghcr.io/<owner>/leak:latest
+# If the RENDER_DEPLOY_HOOK secret is set, Render (free plan, see render.yaml)
+# is told to pull the new image straight away.
 
 on:
   push:
@@ -11,7 +13,7 @@ on:
       - "server/**"
       - "web/**"
       - "Dockerfile"
-      - "fly.toml"
+      - "render.yaml"
       - ".github/workflows/server.yml"
   workflow_dispatch:
 
@@ -42,18 +44,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy-fly:
+  deploy-render:
     needs: image
     runs-on: ubuntu-latest
     env:
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
     steps:
-      - uses: actions/checkout@v4
       - name: Skip notice
-        if: env.FLY_API_TOKEN == ''
-        run: echo "::notice::FLY_API_TOKEN not set; skipping Fly.io deploy. The Docker image on GHCR can run on any host."
-      - uses: superfly/flyctl-actions/setup-flyctl@master
-        if: env.FLY_API_TOKEN != ''
-      - name: Deploy
-        if: env.FLY_API_TOKEN != ''
-        run: flyctl deploy --remote-only
+        if: env.RENDER_DEPLOY_HOOK == ''
+        run: echo "::notice::RENDER_DEPLOY_HOOK not set; skipping. Render can still be redeployed by hand."
+      - name: Ask Render to pull the new image
+        if: env.RENDER_DEPLOY_HOOK != ''
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK" > /dev/null && echo "Render deploy triggered"

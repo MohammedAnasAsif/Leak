@@ -30,20 +30,16 @@ Every headline can be rewritten by an AI into a sharper, sarcastic version ("Cen
 - **The original is always kept.** Story pages show it under a "Savage take" label, and readers can turn savage headlines off in Settings.
 - **Tragedies are left alone.** Stories about deaths, disasters, violence, abuse or serious illness keep their original headline: a keyword filter skips them before any AI call, and the AI is told to refuse anything similar the filter misses.
 - **No invented facts.** The AI may only rephrase what the publisher's headline and summary say, and may not mock victims or anyone's identity.
-- **Bounded cost.** Headlines are rewritten in batches of 12, only for stories under 12 hours old, with a daily cap (3,000 by default).
+- **Fits free tiers.** Headlines are rewritten in batches of 12, newest first, only for stories under 12 hours old, with a daily cap (3,000 by default).
 
-It's off until you give the server an AI key. With Anthropic (default model `claude-haiku-5-5`):
+It's off until the server has an AI key. A **free** key is enough, and no card is needed for either of these:
 
-```bash
-fly secrets set LEAK_LLM_API_KEY=sk-ant-...        # or set it as an env var on any host
-```
+- **Groq** (recommended): sign in at [console.groq.com](https://console.groq.com/keys), create a key (starts with `gsk_`).
+- **Google AI Studio**: sign in at [aistudio.google.com](https://aistudio.google.com/apikey), create a key (starts with `AIza`).
 
-Or any OpenAI-compatible API (OpenAI, Groq, OpenRouter, Google Gemini's OpenAI endpoint, a local Ollama):
+Set it as `LEAK_LLM_API_KEY` on the server; that's all. Leak recognises the provider from the key and uses that provider's free models, best first (Groq: `openai/gpt-oss-120b`, then `openai/gpt-oss-20b`, then `qwen/qwen3.8-27b`). Free tiers have per-minute and per-day limits: when one model hits its limit, Leak rests it and moves to the next, and when all are resting, new stories simply keep their original headlines until the quota resets. Retired models are skipped automatically too.
 
-```bash
-fly secrets set LEAK_LLM_PROVIDER=openai LEAK_LLM_API_KEY=... \
-  LEAK_LLM_BASE_URL=https://api.groq.com/openai/v1 LEAK_LLM_MODEL=<model name from your provider>
-```
+Paid keys also work (Anthropic `sk-ant-…`, OpenAI, OpenRouter, or any OpenAI-compatible API via `LEAK_LLM_PROVIDER=openai` and `LEAK_LLM_BASE_URL`), and `LEAK_LLM_MODEL` takes a comma-separated list to override the models.
 
 The tone lives in one prompt at the top of `server/src/spice.rs` if you want it meaner or kinder.
 
@@ -85,28 +81,47 @@ cd app && npm install
 npx tauri dev                # then Settings → News server → http://localhost:8080
 ```
 
-## Deploy the server (needed by the apps)
+## Run everything for ₹0
 
-The apps need a public **https** address for the engine.
+Every piece runs on a free tier with **no credit card**:
 
-1. **Image:** every push to `main` builds `ghcr.io/mohammedanasasif/leak:latest` (workflow *Server image + deploy*). Run it anywhere: `docker run -p 8080:8080 -v leak-data:/data ghcr.io/mohammedanasasif/leak`.
-2. **Fly.io (optional, automated):** install `flyctl`, run `fly launch --no-deploy --copy-config` once (choose a unique app name and update `fly.toml`), then add a `FLY_API_TOKEN` repository secret (`fly tokens create deploy`). Each push to `main` then deploys.
-3. Set `LEAK_PUBLIC_URL` (in `fly.toml` `[env]` or your host) to that https URL to switch on WebSub push.
+| Piece | Where | Cost |
+|---|---|---|
+| News engine (always on) | Render free plan, `render.yaml` | Free: 750 hours/month covers one service all month |
+| Website | GitHub Pages | Free for public repos |
+| App builds, Docker image | GitHub Actions + GitHub Container Registry | Free for public repos |
+| Savage headlines | Groq or Google AI Studio free tier | Free (daily limits) |
+| Android app | APK from Releases | Free |
+| Windows app | `.exe` from Releases | Free |
+| iPhone / iPad | Website added to the Home Screen | Free |
+
+### 1. Put the engine online (Render, ~5 minutes)
+
+1. Sign up at [render.com](https://render.com) with your GitHub account. The free plan needs no card.
+2. **New → Blueprint**, choose this repository. Render reads `render.yaml` and creates the `leak-news` web service on the free plan, running the image GitHub Actions already built.
+3. When it asks for `LEAK_LLM_API_KEY`, paste your free Groq or Google key (or leave it empty for normal headlines).
+4. Open the service's URL, e.g. `https://leak-news.onrender.com`. News appears within a minute.
+5. Optional, for automatic deploys: in the service's **Settings → Deploy Hook**, copy the URL and save it as a repository secret named `RENDER_DEPLOY_HOOK`. Then every push to `main` updates the server.
+
+Notes on the free plan: Render sleeps a free service after 15 minutes without visitors, which would stop it catching news, so the engine visits its own address every 10 minutes to stay awake (automatic on Render; `LEAK_KEEPALIVE=0` turns it off). Render can also restart free services at any time; Leak rebuilds its news from the feeds within about a minute. Free bandwidth is limited, so serve the website from GitHub Pages (below) and let Render handle only the API.
+
+### 2. Point the website and apps at it
+
+In **Settings → Secrets and variables → Actions → Variables**, add `LEAK_API_URL` = your Render URL. Then:
+
+- **Website:** **Settings → Pages → Source: GitHub Actions**. The site goes live at `https://mohammedanasasif.github.io/Leak/`.
+- **Apps:** the next app build points at your server. Push a tag such as `v0.1.1` to publish the APK and `.exe` on the repository's **Releases** page.
+
+### Other hosts
+
+The image `ghcr.io/mohammedanasasif/leak:latest` runs anywhere Docker does: `docker run -p 8080:8080 ghcr.io/mohammedanasasif/leak`. Set `LEAK_PUBLIC_URL` to the host's https URL to switch on WebSub push (Render's URL is picked up automatically).
 
 ## Build the apps with GitHub Actions
 
-Workflow **Build apps** runs on every push to `main` that touches `app/` or `web/`, on any `v*` tag (which also creates a GitHub Release with the files attached), and manually from the Actions tab.
+Workflow **Build apps** runs on every push to `main` that touches `app/` or `web/`, on any `v*` tag (which also publishes a GitHub Release with the files attached), and manually from the Actions tab. Downloads are on the **Releases** page (or a run's **Artifacts**):
 
-First, in **Settings → Secrets and variables → Actions → Variables**, add:
-
-| Variable | Value |
-|---|---|
-| `LEAK_API_URL` | Your server's https URL, e.g. `https://leak-news.fly.dev` |
-
-Then download from the run's **Artifacts**:
-
-- **Windows:** `Leak-portable.exe` (no install), plus an NSIS `…-setup.exe` and `.msi` installer.
-- **Android:** `Leak-android.apk`. Without signing secrets it's signed with a throwaway CI key, which installs fine but means later builds need an uninstall first. For stable updates, add your own keystore:
+- **Windows:** `Leak-portable.exe` (no install), plus a `…-setup.exe` and `.msi` installer. They aren't code-signed (a certificate costs money), so Windows SmartScreen may say "Windows protected your PC": click **More info → Run anyway**.
+- **Android:** `Leak-android.apk`. Allow "install unknown apps" for your browser or file manager when asked. Without signing secrets each build is signed with a throwaway key, so an update needs an uninstall first. To avoid that, make your own free key (`keytool -genkeypair -keystore release.jks -alias leak -keyalg RSA -validity 10000`) and add:
 
   | Secret | Value |
   |---|---|
@@ -115,18 +130,7 @@ Then download from the run's **Artifacts**:
   | `ANDROID_KEY_ALIAS` | key alias |
   | `ANDROID_KEY_PASSWORD` | key password (if different) |
 
-- **iOS:** Apple only lets signed apps onto iPhones, which needs an Apple Developer account ($99/yr). Without it, the iOS job just confirms the app compiles for iOS. With it, add these secrets and the job produces `Leak-ios.ipa`:
-
-  | Secret | Value |
-  |---|---|
-  | `APPLE_DEVELOPMENT_TEAM` | Your 10-character Team ID |
-  | `IOS_CERTIFICATE` | base64 of your distribution `.p12` |
-  | `IOS_CERTIFICATE_PASSWORD` | its password |
-  | `IOS_MOBILE_PROVISION` | base64 of the provisioning profile |
-
-  The export method defaults to `release-testing` (ad-hoc, install on registered devices); set the variable `IOS_EXPORT_METHOD` to `app-store-connect` for TestFlight/App Store.
-
-**Website:** the engine serves it at its own URL. To also publish a free static copy on GitHub Pages, set `LEAK_API_URL` and choose **Settings → Pages → Source: GitHub Actions**.
+- **iPhone / iPad (free):** open the website in Safari → **Share → Add to Home Screen**. Leak then opens full-screen like an app, with live updates. A real App Store or `.ipa` app is only possible with Apple's paid Developer Program ($99/year), so the iOS build job only checks that the code compiles. If you ever join, add `APPLE_DEVELOPMENT_TEAM`, `IOS_CERTIFICATE`, `IOS_CERTIFICATE_PASSWORD` and `IOS_MOBILE_PROVISION` secrets and the job produces `Leak-ios.ipa`.
 
 ## API
 
@@ -144,14 +148,15 @@ Then download from the run's **Artifacts**:
 | Env var | Default | Meaning |
 |---|---|---|
 | `PORT` | `8080` | Listen port |
-| `LEAK_PUBLIC_URL` | – | Public https URL; enables WebSub push |
+| `LEAK_PUBLIC_URL` | `RENDER_EXTERNAL_URL` on Render | Public https URL; enables WebSub push |
+| `LEAK_KEEPALIVE` | on when on Render | Self-ping every 10 min so free hosts don't sleep |
 | `LEAK_SOURCES` | `sources.toml` | Source list |
 | `LEAK_WEB_DIR` | `../web` | Website folder to serve |
 | `LEAK_DATA_DIR` | `data` | Where the restart snapshot is kept |
 | `LEAK_DISABLE_GDELT` | – | Set to turn off GDELT |
-| `LEAK_LLM_API_KEY` | – | AI key; turns on savage headlines |
-| `LEAK_LLM_PROVIDER` | `anthropic` | `anthropic` or `openai` (any OpenAI-compatible API) |
-| `LEAK_LLM_MODEL` | `claude-haiku-5-5` / `gpt-4o-mini` | Model name |
+| `LEAK_LLM_API_KEY` | – | AI key (free Groq/Google keys work); turns on savage headlines |
+| `LEAK_LLM_PROVIDER` | from the key | `groq`, `gemini`, `anthropic` or `openai` (any OpenAI-compatible API) |
+| `LEAK_LLM_MODEL` | provider's free models | Comma-separated models, best first |
 | `LEAK_LLM_BASE_URL` | provider default | API base URL for OpenAI-compatible providers |
 | `LEAK_SAVAGE_DAILY_LIMIT` | `3000` | Max headlines rewritten per day |
 | `LEAK_SAVAGE` | on | Set to `off` to disable even with a key |
