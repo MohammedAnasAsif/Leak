@@ -1,6 +1,7 @@
 [package]
 name = "leak-app"
 version = "0.1.0"
+authors = ["Mohammed Anas Asif"]
 description = "Leak — live world news for Windows, Android and iOS"
 edition = "2021"
 license = "MIT"

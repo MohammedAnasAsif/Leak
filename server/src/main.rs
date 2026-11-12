@@ -2,6 +2,7 @@ mod api;
 mod config;
 mod ingest;
 mod model;
+mod spice;
 mod store;
 mod util;
 
@@ -36,6 +37,11 @@ async fn main() -> anyhow::Result<()> {
     ingest.spawn_pollers();
     ingest.spawn_gdelt(sources.gdelt.clone());
     ingest.spawn_enricher();
+
+    match env.llm.clone() {
+        Some(cfg) => spice::Spice::new(cfg, store.clone()).spawn(),
+        None => tracing::info!("savage headlines off (set LEAK_LLM_API_KEY to enable)"),
+    }
 
     // Periodic snapshot so restarts are instant.
     {

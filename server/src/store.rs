@@ -99,10 +99,34 @@ impl Store {
 
     /// Replace an article's image after enrichment (no re-broadcast of the story itself).
     pub fn set_image(&self, id: &str, image: String) -> Option<Arc<Article>> {
+        self.modify(id, |a| a.image = Some(image))
+    }
+
+    /// Attach the savage headline and push it to live clients.
+    pub fn set_savage(&self, id: &str, headline: String) -> Option<Arc<Article>> {
+        self.modify(id, |a| a.savage_title = Some(headline))
+    }
+
+    /// Newest stories (within `max_age_hours`) that have no savage headline yet.
+    pub fn needing_savage(&self, max_age_hours: i64, limit: usize) -> Vec<Arc<Article>> {
+        let cutoff = Utc::now() - chrono::Duration::hours(max_age_hours);
+        self.inner
+            .read()
+            .articles
+            .iter()
+            .take_while(|a| a.published > cutoff)
+            .filter(|a| a.savage_title.is_none())
+            .take(limit)
+            .cloned()
+            .collect()
+    }
+
+    /// Apply a change to one stored story and broadcast it as an `update`.
+    fn modify(&self, id: &str, f: impl FnOnce(&mut Article)) -> Option<Arc<Article>> {
         let mut g = self.inner.write();
         let current = g.by_id.get(id)?.clone();
         let mut updated = (*current).clone();
-        updated.image = Some(image);
+        f(&mut updated);
         let updated = Arc::new(updated);
         g.by_id.insert(id.to_string(), updated.clone());
         if let Some(slot) = g.articles.iter_mut().find(|x| x.id == id) {
@@ -131,7 +155,9 @@ impl Store {
             .filter(|a| q.since.map_or(true, |s| a.detected > s))
             .filter(|a| {
                 needle.as_deref().map_or(true, |n| {
-                    a.title.to_lowercase().contains(n) || a.summary.to_lowercase().contains(n)
+                    a.title.to_lowercase().contains(n)
+                        || a.summary.to_lowercase().contains(n)
+                        || a.savage_title.as_deref().is_some_and(|s| s.to_lowercase().contains(n))
                 })
             })
             .take(q.limit)

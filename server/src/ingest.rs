@@ -252,9 +252,9 @@ impl Ingest {
             if summary.eq_ignore_ascii_case(&title) {
                 summary.clear();
             }
-            let image = pick_image(&entry).or_else(|| {
-                util::first_img(&raw_summary).or_else(|| util::first_img(&content_html))
-            });
+            let image = pick_image(&entry)
+                .or_else(|| util::first_img(&raw_summary).or_else(|| util::first_img(&content_html)))
+                .map(|u| util::https_image(&u));
             let author = entry
                 .authors
                 .first()
@@ -274,6 +274,7 @@ impl Ingest {
                 detected: now,
                 read_minutes: util::read_minutes(words),
                 via: via.to_string(),
+                savage_title: None,
             };
             let tkey = util::title_key(&article.title);
             if self.store.insert(article, url_key, tkey, announce) {
@@ -446,7 +447,7 @@ impl Ingest {
                 id: util::short_hash(&url_key),
                 summary: String::new(),
                 url: g.url.clone(),
-                image: Some(g.socialimage).filter(|s| s.starts_with("http")),
+                image: Some(g.socialimage).filter(|s| s.starts_with("http")).map(|u| util::https_image(&u)),
                 source,
                 source_domain: util::domain_of(&g.url),
                 category: q.category.clone(),
@@ -455,6 +456,7 @@ impl Ingest {
                 detected: now,
                 read_minutes: util::read_minutes(0),
                 via: "gdelt".into(),
+                savage_title: None,
                 title,
             };
             let tkey = util::title_key(&article.title);
@@ -516,7 +518,7 @@ impl Ingest {
             }
         }
         let html = String::from_utf8_lossy(&buf);
-        util::og_image(&html).filter(|u| !util::looks_like_pixel(u))
+        util::og_image(&html).filter(|u| !util::looks_like_pixel(u)).map(|u| util::https_image(&u))
     }
 }
 

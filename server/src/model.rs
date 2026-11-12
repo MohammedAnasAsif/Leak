@@ -42,6 +42,9 @@ pub struct Article {
     pub read_minutes: u32,
     /// How the story arrived: "push" (WebSub), "poll" (RSS/Atom) or "gdelt".
     pub via: String,
+    /// AI-written "savage" version of the headline (original stays in `title`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub savage_title: Option<String>,
 }
 
 impl Article {

@@ -92,6 +92,45 @@ pub struct Env {
     /// Public https base URL of this server. Enables WebSub push subscriptions.
     pub public_url: Option<String>,
     pub disable_gdelt: bool,
+    /// Savage headlines; None when no LLM key is configured.
+    pub llm: Option<LlmConfig>,
+}
+
+/// LLM used to write savage headlines (see spice.rs).
+#[derive(Debug, Clone)]
+pub struct LlmConfig {
+    /// "anthropic" or "openai" (any OpenAI-compatible chat API).
+    pub provider: String,
+    pub api_key: String,
+    pub model: String,
+    pub base_url: String,
+    pub daily_limit: u32,
+    pub max_age_hours: i64,
+}
+
+impl LlmConfig {
+    fn from_env() -> Option<Self> {
+        let var = |k: &str| std::env::var(k).ok().map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
+        let api_key = var("LEAK_LLM_API_KEY").or_else(|| var("ANTHROPIC_API_KEY"))?;
+        if matches!(var("LEAK_SAVAGE").as_deref(), Some("0" | "off" | "false")) {
+            return None;
+        }
+        let provider = var("LEAK_LLM_PROVIDER").unwrap_or_else(|| "anthropic".into()).to_lowercase();
+        let provider = if provider == "anthropic" { provider } else { "openai".to_string() };
+        let (default_model, default_base) = if provider == "anthropic" {
+            ("claude-haiku-5-5", "https://api.anthropic.com")
+        } else {
+            ("gpt-4o-mini", "https://api.openai.com/v1")
+        };
+        Some(Self {
+            model: var("LEAK_LLM_MODEL").unwrap_or_else(|| default_model.into()),
+            base_url: var("LEAK_LLM_BASE_URL").unwrap_or_else(|| default_base.into()).trim_end_matches('/').to_string(),
+            daily_limit: var("LEAK_SAVAGE_DAILY_LIMIT").and_then(|v| v.parse().ok()).unwrap_or(3000),
+            max_age_hours: var("LEAK_SAVAGE_MAX_AGE_HOURS").and_then(|v| v.parse().ok()).unwrap_or(12),
+            provider,
+            api_key,
+        })
+    }
 }
 
 impl Env {
@@ -107,6 +146,7 @@ impl Env {
                 .map(|s| s.trim_end_matches('/').to_string())
                 .filter(|s| s.starts_with("https://")),
             disable_gdelt: std::env::var("LEAK_DISABLE_GDELT").is_ok(),
+            llm: LlmConfig::from_env(),
         }
     }
 }

@@ -11,6 +11,8 @@ primary_region = "bom"
   PORT = "8080"
   # Set to your public URL to switch WebSub-capable feeds to instant push:
   # LEAK_PUBLIC_URL = "https://leak-news.fly.dev"
+  # Savage headlines: keep the key secret, don't put it here:
+  #   fly secrets set LEAK_LLM_API_KEY=sk-ant-...
 
 [http_service]
   internal_port = 8080

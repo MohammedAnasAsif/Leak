@@ -22,11 +22,48 @@ No app can know about an event before someone reports it, so Leak aims to be the
 - **Instant fan-out.** New stories are broadcast over Server-Sent Events, so the website and apps update without refreshing. A breaking ticker, "new stories" pill and optional system notifications surface them.
 - **Measured, not claimed.** Every story records when it was published and when Leak detected it. The median detection delay is shown in the site footer and at `/api/health`, and each article shows "Picked up N s after publication".
 
+## Savage headlines
+
+Every headline can be rewritten by an AI into a sharper, sarcastic version ("Central bank does nothing, promises to do something next year"). It's built so it never costs speed or trust:
+
+- **Never slows the news.** A story goes out instantly with its original headline; the savage version follows a second or two later and swaps in live.
+- **The original is always kept.** Story pages show it under a "Savage take" label, and readers can turn savage headlines off in Settings.
+- **Tragedies are left alone.** Stories about deaths, disasters, violence, abuse or serious illness keep their original headline: a keyword filter skips them before any AI call, and the AI is told to refuse anything similar the filter misses.
+- **No invented facts.** The AI may only rephrase what the publisher's headline and summary say, and may not mock victims or anyone's identity.
+- **Bounded cost.** Headlines are rewritten in batches of 12, only for stories under 12 hours old, with a daily cap (3,000 by default).
+
+It's off until you give the server an AI key. With Anthropic (default model `claude-haiku-5-5`):
+
+```bash
+fly secrets set LEAK_LLM_API_KEY=sk-ant-...        # or set it as an env var on any host
+```
+
+Or any OpenAI-compatible API (OpenAI, Groq, OpenRouter, Google Gemini's OpenAI endpoint, a local Ollama):
+
+```bash
+fly secrets set LEAK_LLM_PROVIDER=openai LEAK_LLM_API_KEY=... \
+  LEAK_LLM_BASE_URL=https://api.groq.com/openai/v1 LEAK_LLM_MODEL=<model name from your provider>
+```
+
+The tone lives in one prompt at the top of `server/src/spice.rs` if you want it meaner or kinder.
+
+## Images
+
+Every story gets a picture through this chain, stopping at the first that works:
+
+1. The image the publisher attaches to the feed item (`media:content`, `media:thumbnail`, enclosure).
+2. The first image inside the feed item's text.
+3. The article page's own share image (`og:image`), fetched in the background and pushed live when found.
+4. For GDELT stories, the share image GDELT reports.
+5. If there's still nothing, or the image fails to load, a designed cover in the section's colour with the newsroom's name.
+
+Images load straight from the publisher's servers (`http` links are upgraded to `https` so they work in the apps). Leak deliberately doesn't use AI-generated pictures: a realistic fake photo next to a real news story is misleading.
+
 ## Repository layout
 
 | Path | What it is |
 |---|---|
-| `server/` | The Rust news engine and API (`axum`, `tokio`, `feed-rs`). Also serves the website. |
+| `server/` | The Rust news engine and API (`axum`, `tokio`, `feed-rs`). Also serves the website. `spice.rs` writes savage headlines. |
 | `server/sources.toml` | Every feed and GDELT query. Add, remove or re-categorise freely. |
 | `web/` | The UI: plain HTML/CSS/JS, no build step. Shared by the website and all apps. |
 | `app/src-tauri/` | Tauri v2 shell that turns `web/` into Windows, macOS, Linux, Android and iOS apps. |
@@ -112,12 +149,23 @@ Then download from the run's **Artifacts**:
 | `LEAK_WEB_DIR` | `../web` | Website folder to serve |
 | `LEAK_DATA_DIR` | `data` | Where the restart snapshot is kept |
 | `LEAK_DISABLE_GDELT` | – | Set to turn off GDELT |
+| `LEAK_LLM_API_KEY` | – | AI key; turns on savage headlines |
+| `LEAK_LLM_PROVIDER` | `anthropic` | `anthropic` or `openai` (any OpenAI-compatible API) |
+| `LEAK_LLM_MODEL` | `claude-haiku-5-5` / `gpt-4o-mini` | Model name |
+| `LEAK_LLM_BASE_URL` | provider default | API base URL for OpenAI-compatible providers |
+| `LEAK_SAVAGE_DAILY_LIMIT` | `3000` | Max headlines rewritten per day |
+| `LEAK_SAVAGE` | on | Set to `off` to disable even with a key |
 
 Polling intervals, story limits and image enrichment are under `[settings]` in `sources.toml`.
 
 ## Content and rights
 
 Leak shows only the headline, summary and image a publisher puts in its public feed, and every story links to the full article on the publisher's site. It does not copy articles. Feed URLs change over time; `/api/sources` shows any that fail so they can be updated in `sources.toml`.
+
+## Authors
+
+- **Mohammed Anas Asif** ([@MohammedAnasAsif](https://github.com/MohammedAnasAsif)), creator
+- Built with Claude (Anthropic)
 
 ## License
 

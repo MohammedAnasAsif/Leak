@@ -108,6 +108,19 @@ a:hover .media img { transform: scale(1.035); }
 .media .placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; padding: 18px;
   background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 30%, var(--paper-2)), var(--paper-2) 60%); }
 .media .placeholder b { font-family: var(--serif); font-size: clamp(28px, 4vw, 48px); font-weight: 400; line-height: 1; color: var(--ink); opacity: .85; }
+.media .placeholder[data-cat] { --c: var(--accent);
+  background:
+    repeating-linear-gradient(var(--ang, 135deg), color-mix(in srgb, var(--c) 9%, transparent) 0 2px, transparent 2px 14px),
+    radial-gradient(130% 100% at var(--at, 100% 0%), color-mix(in srgb, var(--c) 55%, var(--paper-2)), color-mix(in srgb, var(--c) 12%, var(--paper-2)) 70%); }
+.placeholder[data-cat="world"] { --c: #2f6db5; } .placeholder[data-cat="politics"] { --c: #b23a48; }
+.placeholder[data-cat="finance"] { --c: #2e8b57; } .placeholder[data-cat="tech"] { --c: #6c4fd6; }
+.placeholder[data-cat="science"] { --c: #0f8c9a; } .placeholder[data-cat="health"] { --c: #d0577a; }
+.placeholder[data-cat="sports"] { --c: #e07b1f; } .placeholder[data-cat="entertainment"] { --c: #c43fb0; }
+.placeholder[data-cat="climate"] { --c: #4c9a2a; }
+.placeholder[data-v="1"] { --ang: 45deg; --at: 0% 0%; } .placeholder[data-v="2"] { --ang: 90deg; --at: 100% 100%; }
+.placeholder[data-v="3"] { --ang: 0deg; --at: 30% 0%; } .placeholder[data-v="1"] i { left: 0.06em; right: auto; }
+.media .placeholder i { position: absolute; top: -0.12em; right: 0.08em; font-family: var(--serif); font-style: normal; font-size: clamp(120px, 22vw, 260px); line-height: 1; color: color-mix(in srgb, var(--c, var(--accent)) 70%, var(--ink)); opacity: .22; pointer-events: none; }
+.card.row .placeholder i { font-size: 96px; }
 .media .placeholder small { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; margin-top: 6px; }
 .badge-live { position: absolute; top: 12px; left: 12px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 4px 9px; border-radius: 999px; }
 
@@ -235,3 +248,10 @@ a:hover .media img { transform: scale(1.035); }
   .u-date { display: none; }
   .grid { gap: 32px; }
 }
+
+/* ── Savage headlines ─────────────────────────────── */
+[data-hl].swap { animation: swap .9s ease; }
+@keyframes swap { 0% { opacity: .15; } 100% { opacity: 1; } }
+.orig { margin: 12px 0 22px; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.orig .spicy { display: inline-block; margin-right: 8px; padding: 2px 8px; border-radius: 999px; background: var(--ink); color: var(--paper); font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; vertical-align: 1px; }
+.toggle small { display: block; font-weight: 400; margin-top: 2px; }

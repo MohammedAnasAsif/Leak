@@ -28,6 +28,11 @@ const state = {
 };
 
 /* ───────────────────────── utilities ───────────────────────── */
+/* Savage headlines: AI rewrite from the server, on by default, switchable in Settings. */
+const savageOn = () => store.get("leak.savage", true);
+const HL = a => (savageOn() && a.savage_title) || a.title;
+const hl = a => `<span data-hl="${a.id}">${esc(HL(a))}</span>`;
+
 const esc = (s = "") => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function ago(iso) {
@@ -55,7 +60,7 @@ function openExternal(url) {
 
 /* ───────────────────────── rendering ───────────────────────── */
 function media(a, { live = false, eager = false } = {}) {
-  const ph = `<div class="placeholder"><b>${esc(a.source)}</b><small>${esc(NAMES[a.category] || "")}</small></div>`;
+  const ph = `<div class="placeholder" data-cat="${esc(a.category)}" data-v="${parseInt(String(a.id).slice(-2), 16) % 4 || 0}"><i>${esc((a.source || "?").trim()[0])}</i><b>${esc(a.source)}</b><small>${esc(NAMES[a.category] || "")}</small></div>`;
   const img = a.image
     ? `<img src="${esc(a.image)}" alt="" ${eager ? "" : 'loading="lazy"'} decoding="async" referrerpolicy="no-referrer" class="loading" onload="this.classList.remove('loading')" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'placeholder',innerHTML:this.dataset.ph}))" data-ph="${esc(ph)}">`
     : ph;
@@ -76,15 +81,15 @@ const href = a => `#/a/${a.id}`;
 function card(a, variant = "std") {
   if (variant === "row") {
     return `<a class="card row" href="${href(a)}" data-id="${a.id}">${media(a)}<div>
-      <span class="tag">${esc(NAMES[a.category])}</span><h3>${esc(a.title)}</h3>${meta(a)}</div></a>`;
+      <span class="tag">${esc(NAMES[a.category])}</span><h3>${hl(a)}</h3>${meta(a)}</div></a>`;
   }
   const dek = a.summary && variant !== "compact" ? `<p>${esc(a.summary)}</p>` : "";
   return `<a class="card ${variant}" href="${href(a)}" data-id="${a.id}">${media(a, { live: true })}
-    <div><span class="tag">${esc(NAMES[a.category])}</span><h3>${esc(a.title)}</h3></div>${dek}${meta(a)}</a>`;
+    <div><span class="tag">${esc(NAMES[a.category])}</span><h3>${hl(a)}</h3></div>${dek}${meta(a)}</a>`;
 }
 
 function justInItem(a, cls = "") {
-  return `<li class="${cls}" data-id="${a.id}"><a href="${href(a)}">${esc(a.title)}</a>
+  return `<li class="${cls}" data-id="${a.id}"><a href="${href(a)}">${hl(a)}</a>
     <div class="meta"><span class="src">${esc(a.source)}</span><span class="sep"></span><time data-ts="${a.published}" class="${isFresh(a.published) ? "fresh" : ""}">${ago(a.published)}</time></div></li>`;
 }
 
@@ -129,7 +134,7 @@ async function renderHome() {
 
   let html = `<section class="hero">
     <a class="lead card" href="${href(lead)}" data-id="${lead.id}">${media(lead, { live: true, eager: true })}
-      <div><span class="tag">${esc(NAMES[lead.category])}</span><h1 class="h-serif">${esc(lead.title)}</h1>
+      <div><span class="tag">${esc(NAMES[lead.category])}</span><h1 class="h-serif">${hl(lead)}</h1>
       ${lead.summary ? `<p class="dek">${esc(lead.summary)}</p>` : ""}${meta(lead)}</div></a>
     <div class="stack">${stack.map(a => card(a, "compact")).join("")}</div>
     <aside class="justin" aria-label="Just in"><h2 class="col-title"><i class="dot"></i>Just in</h2>
@@ -189,7 +194,8 @@ async function renderArticle(id) {
   try { data = await api(`/api/articles/${id}`); }
   catch { main.innerHTML = `<div class="empty"><h2>This story has rolled off the wire</h2><p><a class="btn" href="#/">Back to the front page</a></p></div>`; return; }
   const { article: a, related } = data;
-  document.title = `${a.title} — Leak`;
+  document.title = `${HL(a)} — Leak`;
+  const savage = savageOn() && a.savage_title;
   const lag = Math.max(0, Math.round((new Date(a.detected) - new Date(a.published)) / 1000));
   const via = { push: "Instant push (WebSub)", poll: "Live feed", gdelt: "GDELT global monitor" }[a.via] || a.via;
   const initial = (a.source || "?").trim()[0];
@@ -199,7 +205,8 @@ async function renderArticle(id) {
   main.innerHTML = `<article class="article">
     <nav class="crumbs"><a href="#/">Home</a><span>/</span><a href="#/c/${a.category}">${NAMES[a.category]}</a></nav>
     <span class="tag">${NAMES[a.category]}</span>
-    <h1 class="h-serif">${esc(a.title)}</h1>
+    <h1 class="h-serif">${esc(HL(a))}</h1>
+    ${savage ? `<p class="orig"><span class="spicy">Savage take</span> Original headline: ${esc(a.title)}</p>` : ""}
     <div class="byline">
       <div class="who"><span class="avatar">${esc(initial)}</span><div>
         <div><strong>${esc(a.author || a.source)}</strong>${a.author ? ` <span class="muted">· ${esc(a.source)}</span>` : ""}</div>
@@ -260,7 +267,7 @@ function updateTicker() {
   const recent = state.latest.filter(a => Date.now() - new Date(a.published) < 90 * 60 * 1000).slice(0, 14);
   const t = $("#ticker");
   if (recent.length < 3) { t.hidden = true; return; }
-  const items = recent.map(a => `<a href="${href(a)}"><time>${fmtTime(a.published)}</time>${esc(a.title)}</a>`).join("");
+  const items = recent.map(a => `<a href="${href(a)}"><time>${fmtTime(a.published)}</time>${hl(a)}</a>`).join("");
   $("#tickerRun").innerHTML = items + items; // duplicated for a seamless loop
   t.hidden = false;
 }
@@ -293,6 +300,14 @@ function onStory(a) {
 }
 
 function onUpdate(a) {
+  // A savage headline arrived: swap it in wherever the story is on screen.
+  if (a.savage_title && savageOn()) {
+    $$(`[data-hl="${a.id}"]`).forEach(el => {
+      if (el.textContent !== a.savage_title) { el.textContent = a.savage_title; el.classList.remove("swap"); void el.offsetWidth; el.classList.add("swap"); }
+    });
+  }
+  const i = state.latest.findIndex(x => x.id === a.id);
+  if (i >= 0) state.latest[i] = a;
   // A picture arrived for a story already on screen.
   $$(`[data-id="${a.id}"] .media`).forEach(m => {
     if (!m.querySelector("img") && a.image) {
@@ -404,12 +419,15 @@ function buildChrome() {
   $("#settingsBtn").onclick = () => {
     const cfg = alerts();
     $("#alertsToggle").checked = cfg.on;
+    $("#savageToggle").checked = savageOn();
     $$("#alertCats input").forEach(i => (i.checked = cfg.cats.includes(i.value)));
     $("#serverInput").value = store.get("leak.server", "");
     st.showModal();
   };
   st.addEventListener("click", e => { if (e.target === st) st.close(); });
   $("#settingsSave").onclick = async () => {
+    const sv = $("#savageToggle").checked;
+    if (sv !== savageOn()) { store.set("leak.savage", sv); route(); }
     const on = $("#alertsToggle").checked && (await ensurePermission());
     store.set("leak.alerts", { on, cats: $$("#alertCats input:checked").map(i => i.value) });
     const server = $("#serverInput").value.trim().replace(/\/$/, "");

@@ -98,6 +98,16 @@ pub fn first_img(html: &str) -> Option<String> {
         .filter(|u| u.starts_with("http") && !looks_like_pixel(u))
 }
 
+/// Apps and https sites can't load plain-http images (mixed content /
+/// Android cleartext rules), so ask for the https version. Nearly every news
+/// CDN serves both; if one doesn't, the UI falls back to a designed cover.
+pub fn https_image(u: &str) -> String {
+    match u.strip_prefix("http://") {
+        Some(rest) if !(rest.starts_with("localhost") || rest.starts_with("127.0.0.1")) => format!("https://{rest}"),
+        _ => u.to_string(),
+    }
+}
+
 pub fn looks_like_pixel(u: &str) -> bool {
     let l = u.to_lowercase();
     l.contains("pixel") || l.contains("tracking") || l.contains("feedburner") || l.ends_with(".gif")
@@ -128,6 +138,13 @@ pub fn og_image(html: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn image_https_upgrade() {
+        assert_eq!(https_image("http://cdn.example.com/a.jpg"), "https://cdn.example.com/a.jpg");
+        assert_eq!(https_image("https://cdn.example.com/a.jpg"), "https://cdn.example.com/a.jpg");
+        assert_eq!(https_image("http://127.0.0.1:9000/a.png"), "http://127.0.0.1:9000/a.png");
+    }
 
     #[test]
     fn canonical_strips_tracking() {
